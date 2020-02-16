@@ -42,6 +42,11 @@ namespace acme.net.Controllers
         {
           Response.Headers.Add("Retry-After", "15");
         }
+        if (order.status == Order.OrderStatus.ready)
+        {
+          Response.Headers.Add("Retry-After", "15");
+          CAInterface.submitCSR(_context, order);
+        }
         if (order.status == Order.OrderStatus.valid)
         {
           order.certificateURL = baseURL() + "cert/" + acctID + "/" + orderID;

@@ -67,9 +67,6 @@ namespace acme.net.Controllers
           //No Subject specified.
         }
 
-        //CERTENROLLLib.CObjectId o = new CERTENROLLLib.CObjectId();
-        //o.InitializeFromName(CERTENROLLLib.CERTENROLL_OBJECTID.XCN_OID_SUBJECT_ALT_NAME2);
-
         foreach (CERTENROLLLib.CX509Extension x in certreq.X509Extensions)
         {
           System.Diagnostics.Debug.WriteLine(x.ObjectId.FriendlyName + ":" + x.ObjectId.Value);
@@ -151,12 +148,6 @@ namespace acme.net.Controllers
 
         order.error = CAInterface.submitCSR(_context, order);
 
-        if (order.error != null)
-        {
-          order.status = Order.OrderStatus.invalid;
-          _context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
-          _context.SaveChanges();
-        }
         return order;
       }
       else

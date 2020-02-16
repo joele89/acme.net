@@ -16,6 +16,11 @@ namespace acme.net
     }
     public static AcmeError submitCSR(AcmeContext context, Order order)
     {
+
+      order.status = Order.OrderStatus.processing;
+      context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+      context.SaveChanges();
+
       int ret = 0;
       CERTCLILib.CCertRequest client = new CERTCLILib.CCertRequest();
       try
@@ -36,6 +41,10 @@ namespace acme.net
       }
       catch (Exception ex)
       {
+        order.status = Order.OrderStatus.ready;
+        context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+        context.SaveChanges();
+
         return new AcmeError()
         {
           detail = "Error communicating with upstream CA",
@@ -49,10 +58,6 @@ namespace acme.net
           }
         };
       }
-
-      order.status = Order.OrderStatus.processing;
-      context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
-      context.SaveChanges();
 
       try
       {
@@ -66,6 +71,9 @@ namespace acme.net
           case Constants.CR_DISP_DENIED:
             {
               order.caReqID = client.GetRequestId();
+              order.status = Order.OrderStatus.invalid;
+              context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+              context.SaveChanges();
               return new AcmeError()
               {
                 detail = "CA denied the request",
@@ -76,6 +84,9 @@ namespace acme.net
           case Constants.CR_DISP_UNDER_SUBMISSION:
             {
               order.caReqID = client.GetRequestId();
+              order.status = Order.OrderStatus.invalid;
+              context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+              context.SaveChanges();
               return new AcmeError()
               {
                 detail = "Upstream CA is not configured for auto issuance",
@@ -87,6 +98,9 @@ namespace acme.net
       }
       catch (Exception ex)
       {
+        order.status = Order.OrderStatus.ready;
+        context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+        context.SaveChanges();
         return new AcmeError()
         {
           detail = "Error communicating with upstream CA",
@@ -100,17 +114,32 @@ namespace acme.net
           }
         };
       }
+      try
+      {
+        order.certificate = client.GetCertificate(0x0);
 
-      order.status = Order.OrderStatus.processing;
-      context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
-      context.SaveChanges();
-
-      order.certificate = client.GetCertificate(0x0);
-
-      order.status = Order.OrderStatus.valid;
-      context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
-      context.SaveChanges();
-
+        order.status = Order.OrderStatus.valid;
+        context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+        context.SaveChanges();
+      }
+      catch (Exception ex)
+      {
+        order.status = Order.OrderStatus.ready;
+        context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+        context.SaveChanges();
+        return new AcmeError()
+        {
+          detail = "Error communicating with upstream CA",
+          type = AcmeError.ErrorType.serverInternal,
+          subproblems = new AcmeError[] {
+            new AcmeError()
+            {
+              type = AcmeError.ErrorType.serverInternal,
+              detail = ex.Message,
+            }
+          }
+        };
+      }
       return null;
 #warning TODO: SubmitCSR as task
     }

@@ -113,9 +113,6 @@ namespace acme.net.Controllers
       {
         wc.Proxy = new System.Net.WebProxy(IISAppSettings.GetValue("HTTPProxy"));
       }
-#if DEBUG
-      wc.Proxy = new System.Net.WebProxy("http://localhost:8888");
-#endif
       return wc.DownloadString("http://" + identifier + "/.well-known/acme-challenge/" + token);
     }
   }
