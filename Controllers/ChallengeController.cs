@@ -28,7 +28,6 @@ namespace acme.net.Controllers
         Order reqOrder = _context.Order.Find(reqAuth.orderID);
         if (reqOrder.accountID == refAccount.accountID)
         {
-          string accountToken = AcmeJWT.calculateToken(refAccount);
           reqChallenge.status = net.Challenge.ChallengeStatus.processing;
           reqChallenge.url = baseURL() + "challenge/" + reqChallenge.challengeID;
           try
@@ -38,12 +37,14 @@ namespace acme.net.Controllers
             {
               case net.Challenge.ChallengeType.http01:
                 {
-                  challengeResult = getHTTP01(reqAuth.identifier.value, reqChallenge.token, accountToken);
+                  string accountHash = AcmeJWT.calculateAccountHash(refAccount);
+                  challengeResult = getHTTP01(reqAuth.identifier.value, reqChallenge.token, accountHash);
                   break;
                 }
               case net.Challenge.ChallengeType.dns01:
                 {
-                  challengeResult = getDNS01(reqAuth.identifier.value, reqChallenge.token, accountToken);
+                  string tokenHash = AcmeJWT.calculateTokenHash(reqChallenge.token);
+                  challengeResult = getDNS01(reqAuth.identifier.value, tokenHash);
                   break;
                 }
               default:
@@ -113,7 +114,7 @@ namespace acme.net.Controllers
       }
     }
 
-    bool getHTTP01(string identifier, string challengeToken, string accountToken)
+    bool getHTTP01(string identifier, string challengeToken, string accountHash)
     {
       System.Net.WebClient wc = new System.Net.WebClient();
       if (IISAppSettings.HasKey("HTTPProxy"))
@@ -121,17 +122,17 @@ namespace acme.net.Controllers
         wc.Proxy = new System.Net.WebProxy(IISAppSettings.GetValue("HTTPProxy"));
       }
       string ret = wc.DownloadString("http://" + identifier + "/.well-known/acme-challenge/" + challengeToken);
-      return (ret == challengeToken + "." + accountToken);
+      return (ret == challengeToken + "." + accountHash);
     }
 
-    bool getDNS01(string identifier, string challengeToken, string accountToken)
+    bool getDNS01(string identifier, string tokenHash)
     {
       DnsClient.LookupClient lc = new DnsClient.LookupClient();
 #warning TODO: identify/connect to authoritave name server
       DnsClient.IDnsQueryResponse qr = lc.Query("_acme-challenge." + identifier, DnsClient.QueryType.TXT);
       foreach (DnsClient.Protocol.TxtRecord record in qr.Answers)
       {
-        if (record.Text.First() == accountToken) { return true; }
+        if (record.Text.First() == tokenHash) { return true; }
       }
       return false;
     }
