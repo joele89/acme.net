@@ -104,7 +104,7 @@ namespace acme.net
       return rsaDeformatter.VerifySignature(hash, Base64UrlEncoder.DecodeBytes(this.signature));
     }
 
-    public bool validateToken(Account account, string thumbprint)
+    static public string calculateToken(Account account)
     {
       System.Security.Cryptography.RSACryptoServiceProvider rsa = new System.Security.Cryptography.RSACryptoServiceProvider();
       rsa.ImportParameters(
@@ -124,7 +124,7 @@ namespace acme.net
       string jsonJWK = Newtonsoft.Json.JsonConvert.SerializeObject(jwk);
       System.Security.Cryptography.SHA256 sha256 = System.Security.Cryptography.SHA256.Create();
       byte[] hash = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(jsonJWK));
-      return Base64UrlEncoder.Encode(hash) == thumbprint;
+      return Base64UrlEncoder.Encode(hash);
     }
 
   }
