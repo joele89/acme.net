@@ -8,6 +8,11 @@ namespace acme.net
 {
   public class AcmeContext : DbContext
   {
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+      modelBuilder.Entity<Contact>().HasKey(c => new { c.accountID, c.contact });
+    }
+
     public AcmeContext(DbContextOptions<AcmeContext> options) : base(options) { }
     
     public virtual DbSet<Account> Account { get; set; }

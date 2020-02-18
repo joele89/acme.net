@@ -14,8 +14,11 @@ namespace acme.net
   {
     [Newtonsoft.Json.JsonIgnore]
     [System.ComponentModel.DataAnnotations.Key]
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12)")]
     public string orderID { get; set; }
     [Newtonsoft.Json.JsonIgnore]
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12)")]
     public string accountID { get; set; }
     [Newtonsoft.Json.JsonRequired]
     [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
@@ -33,17 +36,19 @@ namespace acme.net
     public DateTimeOffset? notAfter { get; set; }
     public AcmeError error;
     [Newtonsoft.Json.JsonRequired]
-    public String[] authorizations;
+    public string[] authorizations;
     [Newtonsoft.Json.JsonRequired]
-    public String finalize;
+    public string finalize;
     [Newtonsoft.Json.JsonIgnore]
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "TEXT")]
     public string csr { get; set; }
     [Newtonsoft.Json.JsonIgnore]
-    public String certificate { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName="TEXT")]
+    public string certificate { get; set; }
     [Newtonsoft.Json.JsonProperty(PropertyName = "certificate")]
-    public String certificateURL;
+    public string certificateURL;
     [Newtonsoft.Json.JsonIgnore]
-    public int caReqID { get; set; }
+    public int? caReqID { get; set; }
 
     public enum OrderStatus : int
     {

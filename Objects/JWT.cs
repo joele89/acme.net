@@ -144,10 +144,13 @@ namespace acme.net
   public class JWK
   {
     [Newtonsoft.Json.JsonRequired]
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(10)")]
     virtual public String e { get; set; }
     [Newtonsoft.Json.JsonRequired]
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(10)")]
     virtual public String kty { get; set; }
     [Newtonsoft.Json.JsonRequired]
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(2000)")]
     virtual public String n { get; set; }
   }
 }

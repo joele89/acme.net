@@ -9,9 +9,9 @@ namespace acme.net
   public class Contact
   {
     [Newtonsoft.Json.JsonIgnore]
-    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12)")]
     public string accountID { get; set; }
-    [System.ComponentModel.DataAnnotations.Key]
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(255)")]
     public string contact { get; set; }
   }
 }

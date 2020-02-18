@@ -17,16 +17,17 @@ namespace acme.net
 
     [Newtonsoft.Json.JsonIgnore]
     [System.ComponentModel.DataAnnotations.Key]
-    public String accountID { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12)")]
+    public string accountID { get; set; }
     public Key key { get; set; }
     [Newtonsoft.Json.JsonRequired]
     [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
     public AccountStatus status { get; set; }
-    public String[] contact { get { return _context.Contact.Where(q => q.accountID == this.accountID).Select(q => q.contact).ToArray(); } }
-    public Boolean termsOfServiceAgreed { get; set; }
+    public string[] contact { get { return _context.Contact.Where(q => q.accountID == this.accountID).Select(q => q.contact).ToArray(); } }
+    public bool? termsOfServiceAgreed { get; set; }
     public Object externalAccountBinding;
     [Newtonsoft.Json.JsonRequired]
-    public String orders { get { return baseUrl + "account/" + accountID + "/orders"; } }
+    public string orders { get { return baseUrl + "account/" + accountID + "/orders"; } }
 
     public enum AccountStatus : int
     {
@@ -37,9 +38,10 @@ namespace acme.net
     [System.ComponentModel.DataAnnotations.Schema.Table("AccountKey")]
     public class Key : JWK
     {
-      [System.ComponentModel.DataAnnotations.Key]
       [Newtonsoft.Json.JsonIgnore]
-      public String accountID { get; set; }
+      [System.ComponentModel.DataAnnotations.Key]
+      [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12)")]
+      public string accountID { get; set; }
 
       public static Key FromJWK(JWK j)
       {
@@ -51,10 +53,6 @@ namespace acme.net
         };
         return k;
       }
-    }
-    public class ExternalAccountBinding : AcmeJWT
-    {
-
     }
   }
 
