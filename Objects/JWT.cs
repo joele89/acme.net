@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
+//using System.IdentityModel.Tokens.Jwt;
 
 namespace acme.net
 {
@@ -18,6 +18,7 @@ namespace acme.net
 
     public bool validate(AcmeContext context)
     {
+#warning TODO: validate NONCE issued/not reused.
       string decodedHeader = Base64UrlEncoder.Decode(this.encodedJWTHeader);
       JWTHeader header = Newtonsoft.Json.JsonConvert.DeserializeObject<JWTHeader>(decodedHeader);
       string jsonJWK = Newtonsoft.Json.JsonConvert.SerializeObject(header.jwk);
