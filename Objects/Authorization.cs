@@ -15,11 +15,11 @@ namespace acme.net
 
     [Newtonsoft.Json.JsonIgnore]
     [System.ComponentModel.DataAnnotations.Key]
-    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12)")]
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12) COLLATE SQL_Latin1_General_CP1_CS_AS")]
     public string authID { get; set; }
     [Newtonsoft.Json.JsonIgnore]
     [System.ComponentModel.DataAnnotations.Required]
-    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12)")]
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12) COLLATE SQL_Latin1_General_CP1_CS_AS")]
     public string orderID { get; set; }
     [Newtonsoft.Json.JsonRequired]
     public OrderStub identifier;

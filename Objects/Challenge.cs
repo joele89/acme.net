@@ -8,11 +8,11 @@ namespace acme.net
   public class Challenge
   {
     [Newtonsoft.Json.JsonIgnore]
-    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12)")]
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12) COLLATE SQL_Latin1_General_CP1_CS_AS")]
     public string challengeID { get; set; }
     [Newtonsoft.Json.JsonIgnore]
     [System.ComponentModel.DataAnnotations.Required]
-    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12)")]
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12) COLLATE SQL_Latin1_General_CP1_CS_AS")]
     public string authID { get; set; }
     [Newtonsoft.Json.JsonRequired]
     [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]

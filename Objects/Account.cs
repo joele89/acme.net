@@ -17,7 +17,7 @@ namespace acme.net
 
     [Newtonsoft.Json.JsonIgnore]
     [System.ComponentModel.DataAnnotations.Key]
-    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12)")]
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12) COLLATE SQL_Latin1_General_CP1_CS_AS")]
     public string accountID { get; set; }
     public Key key { get; set; }
     [Newtonsoft.Json.JsonRequired]
@@ -40,7 +40,7 @@ namespace acme.net
     {
       [Newtonsoft.Json.JsonIgnore]
       [System.ComponentModel.DataAnnotations.Key]
-      [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12)")]
+      [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12) COLLATE SQL_Latin1_General_CP1_CS_AS")]
       public string accountID { get; set; }
 
       public static Key FromJWK(JWK j)
