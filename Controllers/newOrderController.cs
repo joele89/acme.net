@@ -54,7 +54,7 @@ namespace acme.net.Controllers
           }
         }
 
-     
+        order.finalize = baseURL() + "finalize/" + refAccount.accountID + "/" + order.orderID;
 
         _context.Order.Add(order);
 
