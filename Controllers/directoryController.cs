@@ -25,9 +25,9 @@ namespace acme.net.Controllers
         revokeCert = baseURL() + "revokeCert",
         keyChange = baseURL() + "keyChange"
       };
-      if (IISAppSettings.HasKey("newAuthz"))
+      if (IISAppSettings.HasKey("Enable-PreAuthorization"))
       {
-        d.newAuthz = IISAppSettings.GetValue("newAuthz");
+        d.newAuthz = baseURL() + "newAuthz";
       }
       return d;
     }

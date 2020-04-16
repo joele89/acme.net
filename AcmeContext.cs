@@ -21,6 +21,7 @@ namespace acme.net
     public virtual DbSet<Order> Order { get; set; }
     public virtual DbSet<Authorization> Authorization { get; set; }
     public virtual DbSet<Challenge> Challenge { get; set; }
+    public virtual DbSet<IdentifierPreAuth> IdentifierPreAuth { get; set; }
   }
   
   /*

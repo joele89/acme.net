@@ -42,10 +42,11 @@ namespace acme.net.Controllers
           certreq.InitializeDecode(finalize.csr);
           certreq.CheckSignature();
         }
-        catch
+        catch (Exception ex)
         {
           Response.StatusCode = 400;
           order.error = new AcmeError() { type = AcmeError.ErrorType.badCSR };
+          order.error.detail = "Failed to decode CSR, " + ex.Message;
           return order;
         }
         try

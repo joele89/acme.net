@@ -5,11 +5,6 @@ using System.Threading.Tasks;
 
 namespace acme.net
 {
-  public class OrdersList
-  {
-    [Newtonsoft.Json.JsonRequired]
-    public String[] orders;
-  }
   public class Order
   {
     [Newtonsoft.Json.JsonIgnore]
@@ -43,7 +38,7 @@ namespace acme.net
     [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "TEXT")]
     public string csr { get; set; }
     [Newtonsoft.Json.JsonIgnore]
-    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName="TEXT")]
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "TEXT")]
     public string certificate { get; set; }
     [Newtonsoft.Json.JsonProperty(PropertyName = "certificate")]
     public string certificateURL;
@@ -88,5 +83,10 @@ namespace acme.net
     public string resource;
     [Newtonsoft.Json.JsonRequired]
     public string csr;
+  }
+  public class IdentifierPreAuth
+  {
+    [System.ComponentModel.DataAnnotations.Key]
+    public string identifier { get; set; }
   }
 }

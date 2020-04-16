@@ -34,7 +34,27 @@ namespace acme.net.Controllers
           status = Order.OrderStatus.pending,
           expires = expireTime
         };
-        order.finalize = baseURL() + "finalize/" + refAccount.accountID + "/" + order.orderID;
+
+        if (IISAppSettings.HasKey("Require-Identifier-PreAuth"))
+        {
+          foreach (OrderStub i in requests.identifiers)
+          {
+            IdentifierPreAuth ipa = _context.IdentifierPreAuth.Find(i.value);
+            if (ipa is null)
+            {
+              order.error = new AcmeError()
+              {
+                type = AcmeError.ErrorType.userActionRequired,
+                detail = "DNS name has not been authorized for ACME, please visit " + IISAppSettings.GetValue("Require-Identifier-PreAuth")
+              };
+              order.status = Order.OrderStatus.invalid;
+              Response.StatusCode = 401;
+              return order;
+            }
+          }
+        }
+
+     
 
         _context.Order.Add(order);
 

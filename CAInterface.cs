@@ -32,11 +32,11 @@ namespace acme.net
         }
         if (IISAppSettings.HasKey("CACertTemplate"))
         {
-          client.Submit(0x0, "-----BEGIN NEW CERTIFICATE REQUEST-----" + order.csr + "-----END NEW CERTIFICATE REQUEST-----", "CertificateTemplate:" + IISAppSettings.GetValue("CACertTemplate"), IISAppSettings.GetValue("CAConfig"));
+          ret = client.Submit(0x0, "-----BEGIN NEW CERTIFICATE REQUEST-----" + order.csr + "-----END NEW CERTIFICATE REQUEST-----", "CertificateTemplate:" + IISAppSettings.GetValue("CACertTemplate"), IISAppSettings.GetValue("CAConfig"));
         }
         else
         {
-          client.Submit(0x0, "-----BEGIN NEW CERTIFICATE REQUEST-----" + order.csr + "-----END NEW CERTIFICATE REQUEST-----", null, IISAppSettings.GetValue("CAConfig"));
+          ret = client.Submit(0x0, "-----BEGIN NEW CERTIFICATE REQUEST-----" + order.csr + "-----END NEW CERTIFICATE REQUEST-----", null, IISAppSettings.GetValue("CAConfig"));
         }
       }
       catch (Exception ex)
@@ -44,7 +44,6 @@ namespace acme.net
         order.status = Order.OrderStatus.ready;
         context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
         context.SaveChanges();
-
         return new AcmeError()
         {
           detail = "Error communicating with upstream CA",

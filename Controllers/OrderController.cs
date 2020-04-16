@@ -45,7 +45,7 @@ namespace acme.net.Controllers
         if (order.status == Order.OrderStatus.ready)
         {
           Response.Headers.Add("Retry-After", "15");
-          CAInterface.submitCSR(_context, order);
+          order.error = CAInterface.submitCSR(_context, order);
         }
         if (order.status == Order.OrderStatus.valid)
         {
