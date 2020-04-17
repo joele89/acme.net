@@ -20,7 +20,7 @@ namespace acme.net.Controllers
 
     // POST: newAccount
     [HttpPost]
-    public Account Post([FromBody] AcmeJWT message)
+    public ActionResult<Account> Post([FromBody] AcmeJWT message)
     {
       if (message.validate(_context))
       {
@@ -82,10 +82,7 @@ namespace acme.net.Controllers
           {
             //Only Return Existing, No existing
             Response.Headers.Add("Replay-Nonce", generateNonce());
-            Response.StatusCode = 404;
-            new AcmeError() { type = AcmeError.ErrorType.accountDoesNotExist };
-#warning TODO: return ACMEerror object
-            return null;
+            return NotFound(new AcmeError() { type = AcmeError.ErrorType.accountDoesNotExist });
           }
         }
         else
@@ -104,10 +101,7 @@ namespace acme.net.Controllers
       {
         //Message validation failed
         Response.Headers.Add("Replay-Nonce", generateNonce());
-        Response.StatusCode = 400;
-        new AcmeError() { type = AcmeError.ErrorType.malformed };
-#warning TODO: return ACMEerror object
-        return null;
+        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
       }
     }
     private bool AccountExists(string id)

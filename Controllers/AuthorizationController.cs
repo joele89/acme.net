@@ -18,7 +18,7 @@ namespace acme.net.Controllers
     }
 
     [HttpPost("{id}")]
-    public Authorization Post(string id, [FromBody] AcmeJWT message)
+    public ActionResult<Authorization> Post(string id, [FromBody] AcmeJWT message)
     {
       if (message.validate(_context, out Account refAccount))
       {
@@ -89,17 +89,17 @@ namespace acme.net.Controllers
           }
           else
           {
-            throw new AcmeException() { type = AcmeError.ErrorType.serverInternal };
+            throw new AcmeException() { type = AcmeError.ErrorType.serverInternal, detail = "All chalenge types disabled" };
           }
         }
         else
         {
-          throw new AcmeException() { type = AcmeError.ErrorType.malformed };
+          return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
         }
       }
       else
       {
-        throw new AcmeException() { type = AcmeError.ErrorType.malformed };
+        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
       }
     }
   }

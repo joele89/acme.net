@@ -18,7 +18,7 @@ namespace acme.net.Controllers
       _context = context;
     }
     [HttpPost("{acctID}/{orderID}")]
-    public Order Post(string acctID, string orderID, [FromBody] AcmeJWT message)
+    public ActionResult<Order> Post(string acctID, string orderID, [FromBody] AcmeJWT message)
     {
       if (message.validate(_context, out Account refAccount) && acctID == refAccount.accountID)
       {
@@ -44,10 +44,11 @@ namespace acme.net.Controllers
         }
         catch (Exception ex)
         {
-          Response.StatusCode = 400;
-          order.error = new AcmeError() { type = AcmeError.ErrorType.badCSR };
-          order.error.detail = "Failed to decode CSR, " + ex.Message;
-          return order;
+          return BadRequest(new AcmeError()
+          {
+            type = AcmeError.ErrorType.badCSR,
+            detail = "Failed to decode CSR, " + ex.Message
+          });
         }
         try
         {
@@ -83,13 +84,11 @@ namespace acme.net.Controllers
               }
               else
               {
-                order.error = new AcmeError()
+                return BadRequest(new AcmeError()
                 {
                   type = AcmeError.ErrorType.badCSR,
                   detail = "Invalid SANs defined, only DNS SANs are supported"
-                };
-                Response.StatusCode = 400;
-                return order;
+                });
               }
             }
           }
@@ -114,25 +113,22 @@ namespace acme.net.Controllers
         order.authorizations = authList.ToArray();
         if (csrNames.Count > 0)
         {
-          order.error = new AcmeError()
+          return BadRequest(
+          new AcmeError()
           {
             type = AcmeError.ErrorType.badCSR,
             detail = "CSR contains DNS names not in origional order"
-          };
-          Response.StatusCode = 400;
-          return order;
+          });
         }
         try
         {
           if (certreq.Template != null)
           {
-            order.error = new AcmeError()
+            return BadRequest(new AcmeError()
             {
               type = AcmeError.ErrorType.badCSR,
               detail = "CSR contains template attribute"
-            };
-            Response.StatusCode = 400;
-            return order;
+            });
           }
         }
         catch
@@ -146,14 +142,18 @@ namespace acme.net.Controllers
         _context.SaveChanges();
 
         Response.Headers.Add("Retry-After", "15");
-
-        order.error = CAInterface.submitCSR(_context, order);
+        AcmeError e = CAInterface.submitCSR(_context, order);
+        if (e != null)
+        {
+          Response.StatusCode = 500;
+          return new ObjectResult(e);
+        }
 
         return order;
       }
       else
       {
-        throw new AcmeException() { type = AcmeError.ErrorType.malformed };
+        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
       }
     }
   }

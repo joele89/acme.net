@@ -18,7 +18,7 @@ namespace acme.net.Controllers
     }
     // POST: newOrder
     [HttpPost]
-    public Order Post([FromBody] AcmeJWT message)
+    public ActionResult<Order> Post([FromBody] AcmeJWT message)
     {
       if (message.validate(_context, out Account refAccount))
       {
@@ -42,14 +42,14 @@ namespace acme.net.Controllers
             IdentifierPreAuth ipa = _context.IdentifierPreAuth.Find(i.value);
             if (ipa is null)
             {
-              order.error = new AcmeError()
+              order.status = Order.OrderStatus.invalid;
+              _context.Order.Add(order);
+              _context.SaveChanges();
+              return Unauthorized(new AcmeError()
               {
                 type = AcmeError.ErrorType.userActionRequired,
-                detail = "DNS name '" + i.value + "' has not been authorized for ACME, please visit " + IISAppSettings.GetValue("Require-Identifier-PreAuth")
-              };
-              order.status = Order.OrderStatus.invalid;
-              Response.StatusCode = 401;
-              return order;
+                detail = "DNS name '" + i.value + "' has not been authorized for this ACME server, please visit " + IISAppSettings.GetValue("Require-Identifier-PreAuth")
+              });
             }
           }
         }
@@ -84,8 +84,7 @@ namespace acme.net.Controllers
       }
       else
       {
-        Response.StatusCode = 400;
-        return null;
+        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
       }
     }
   }

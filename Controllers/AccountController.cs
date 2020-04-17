@@ -46,9 +46,7 @@ namespace acme.net.Controllers
 
         if (id != refAccount.accountID)
         {
-          Response.StatusCode = 400;
-          throw new AcmeException() { type = AcmeError.ErrorType.malformed };
-          //return acmeerror
+         return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
         }
         if (accountStub.status != null && accountStub.status != Account.AccountStatus.valid)
         {
@@ -70,7 +68,7 @@ namespace acme.net.Controllers
       }
       else
       {
-        throw new AcmeException() { type = AcmeError.ErrorType.malformed };
+        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
       }
     }
   }

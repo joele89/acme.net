@@ -19,7 +19,7 @@ namespace acme.net.Controllers
     }
 
     [HttpPost("{challengeID}")]
-    public Challenge Post(string challengeID, [FromBody] AcmeJWT message)
+    public ActionResult<Challenge> Post(string challengeID, [FromBody] AcmeJWT message)
     {
       if (message.validate(_context, out Account refAccount))
       {
@@ -105,12 +105,12 @@ namespace acme.net.Controllers
         }
         else
         {
-          throw new AcmeException() { type = AcmeError.ErrorType.malformed };
+          return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
         }
       }
       else
       {
-        throw new AcmeException() { type = AcmeError.ErrorType.malformed };
+        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
       }
     }
 

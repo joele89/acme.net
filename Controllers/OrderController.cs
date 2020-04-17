@@ -11,13 +11,14 @@ namespace acme.net.Controllers
   [ApiController]
   public class OrderController : ControllerBase
   {
+
     private readonly AcmeContext _context;
     public OrderController(AcmeContext context)
     {
       _context = context;
     }
     [HttpPost("{acctID}/{orderID}")]
-    public Order Post(string acctID, string orderID, [FromBody] AcmeJWT message)
+    public ActionResult<Order> Post(string acctID, string orderID, [FromBody] AcmeJWT message)
     {
       if (message.validate(_context, out Account refAccount) && acctID == refAccount.accountID)
       {
@@ -45,7 +46,12 @@ namespace acme.net.Controllers
         if (order.status == Order.OrderStatus.ready)
         {
           Response.Headers.Add("Retry-After", "15");
-          order.error = CAInterface.submitCSR(_context, order);
+          AcmeError e = CAInterface.submitCSR(_context, order);
+          if (e != null)
+          {
+            Response.StatusCode = 500;
+            return new ObjectResult(e);
+          }
         }
         if (order.status == Order.OrderStatus.valid)
         {
@@ -55,7 +61,7 @@ namespace acme.net.Controllers
       }
       else
       {
-        throw new AcmeException() { type = AcmeError.ErrorType.malformed };
+        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
       }
     }
   }

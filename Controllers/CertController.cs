@@ -17,7 +17,7 @@ namespace acme.net.Controllers
       _context = context;
     }
     [HttpPost("{acctID}/{orderID}")]
-    public string Post(string acctID, string orderID, [FromBody] AcmeJWT message)
+    public ActionResult<string> Post(string acctID, string orderID, [FromBody] AcmeJWT message)
     {
       if (message.validate(_context, out Account refAccount) && acctID == refAccount.accountID)
       {
@@ -44,7 +44,7 @@ namespace acme.net.Controllers
       }
       else
       {
-        throw new AcmeException() { type = AcmeError.ErrorType.malformed };
+        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
       }
     }
   }

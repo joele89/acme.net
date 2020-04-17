@@ -19,30 +19,18 @@ namespace acme.net.Controllers
 
     // POST: newAuthz
     [HttpPost]
-    public Authorization Post([FromBody] AcmeJWT message)
+    public ActionResult<Authorization> Post([FromBody] AcmeJWT message)
     {
       //if (message.validate(_context, out Account refAccount))
       if (message.validate(_context))
       {
         string payloadJson = Microsoft.IdentityModel.Tokens.Base64UrlEncoder.Decode(message.encodedPayload);
         OrderStub identifier = Newtonsoft.Json.JsonConvert.DeserializeObject<OrderStub>(payloadJson);
-
-        //if not Order OK
-        Response.StatusCode = 400;
-        //return new AcmeError()
-        //{
-        //  type = AcmeError.ErrorType.rejectedIdentifier
-        //};
-        return null;
+        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.rejectedIdentifier });
       }
       else
       {
-        Response.StatusCode = 400;
-        //return new AcmeError()
-        //{
-        //  type = AcmeError.ErrorType.malformed
-        //};
-        return null;
+        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
       }
     }
   }
