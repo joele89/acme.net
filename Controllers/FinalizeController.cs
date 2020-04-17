@@ -39,7 +39,7 @@ namespace acme.net.Controllers
         try
         {
           certreq = new CERTENROLLLib.CX509CertificateRequestPkcs10();
-          certreq.InitializeDecode(finalize.csr);
+          certreq.InitializeDecode(order.csr);
           certreq.CheckSignature();
         }
         catch (Exception ex)
