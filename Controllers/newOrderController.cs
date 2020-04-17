@@ -45,7 +45,7 @@ namespace acme.net.Controllers
               order.error = new AcmeError()
               {
                 type = AcmeError.ErrorType.userActionRequired,
-                detail = "DNS name has not been authorized for ACME, please visit " + IISAppSettings.GetValue("Require-Identifier-PreAuth")
+                detail = "DNS name '" + i.value + "' has not been authorized for ACME, please visit " + IISAppSettings.GetValue("Require-Identifier-PreAuth")
               };
               order.status = Order.OrderStatus.invalid;
               Response.StatusCode = 401;
