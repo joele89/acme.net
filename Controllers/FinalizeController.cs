@@ -50,23 +50,26 @@ namespace acme.net.Controllers
             detail = "Failed to decode CSR, " + ex.Message
           });
         }
-        try
+        if (IISAppSettings.HasKey("Require-CN-Challenge"))
         {
-          string subject = certreq.Subject.Name;
-          if (subject.Contains("CN="))
+          try
           {
-            foreach (string n in subject.Split(","))
+            string subject = certreq.Subject.Name;
+            if (subject.Contains("CN="))
             {
-              if (n.Trim().StartsWith("CN="))
+              foreach (string n in subject.Split(","))
               {
-                csrNames.Add(n.Trim().Split("=")[1].ToLower());
+                if (n.Trim().StartsWith("CN="))
+                {
+                  csrNames.Add(n.Trim().Split("=")[1].ToLower());
+                }
               }
             }
           }
-        }
-        catch
-        {
-          //No Subject specified.
+          catch
+          {
+            //No Subject specified.
+          }
         }
 
         foreach (CERTENROLLLib.CX509Extension x in certreq.X509Extensions)
