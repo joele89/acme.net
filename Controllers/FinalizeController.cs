@@ -50,27 +50,6 @@ namespace acme.net.Controllers
             detail = "Failed to decode CSR, " + ex.Message
           });
         }
-        if (IISAppSettings.HasKey("Require-CN-Challenge"))
-        {
-          try
-          {
-            string subject = certreq.Subject.Name;
-            if (subject.Contains("CN="))
-            {
-              foreach (string n in subject.Split(","))
-              {
-                if (n.Trim().StartsWith("CN="))
-                {
-                  csrNames.Add(n.Trim().Split("=")[1].ToLower());
-                }
-              }
-            }
-          }
-          catch
-          {
-            //No Subject specified.
-          }
-        }
 
         foreach (CERTENROLLLib.CX509Extension x in certreq.X509Extensions)
         {
@@ -94,6 +73,28 @@ namespace acme.net.Controllers
                 });
               }
             }
+          }
+        }
+
+        if (csrNames.Count == 0 | IISAppSettings.HasKey("Disable-CN-Challenge"))
+        {
+          try
+          {
+            string subject = certreq.Subject.Name;
+            if (subject.Contains("CN="))
+            {
+              foreach (string n in subject.Split(","))
+              {
+                if (n.Trim().StartsWith("CN="))
+                {
+                  csrNames.Add(n.Trim().Split("=")[1].ToLower());
+                }
+              }
+            }
+          }
+          catch
+          {
+            //No Subject specified.
           }
         }
 
@@ -145,13 +146,18 @@ namespace acme.net.Controllers
         _context.SaveChanges();
 
         Response.Headers.Add("Retry-After", "15");
+        //TODO: Make this async
         AcmeError e = CAInterface.submitCSR(_context, order);
         if (e != null)
         {
           Response.StatusCode = 500;
           return new ObjectResult(e);
         }
-
+        //NOTE: The following if statement becomes redundant if submitCSR() is made async...
+        if (order.status == Order.OrderStatus.valid)
+        {
+          order.certificateURL = baseURL() + "cert/" + acctID + "/" + orderID;
+        }
         return order;
       }
       else
