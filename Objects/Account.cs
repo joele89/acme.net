@@ -43,15 +43,30 @@ namespace acme.net
       [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "VARCHAR(12) COLLATE SQL_Latin1_General_CP1_CS_AS")]
       public string accountID { get; set; }
 
-      public static Key FromJWK(JWK j)
+      public static Key FromJWK(JWK jwk)
       {
-        Key k = new Key()
+        switch (jwk.kty)
         {
-          n = j.n,
-          e = j.e,
-          kty = j.kty
-        };
-        return k;
+          case "RSA":
+            Key rsa_k = new Key()
+            {
+              n = jwk.n,
+              e = jwk.e,
+              kty = jwk.kty
+            };
+            return rsa_k;
+          case "EC":
+            Key ec_k = new Key()
+            {
+              kty = jwk.kty,
+              crv = jwk.crv,
+              x = jwk.x,
+              y = jwk.y
+            };
+            return ec_k;
+          default:
+            throw new NotImplementedException();
+        }
       }
     }
   }

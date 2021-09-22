@@ -20,76 +20,83 @@ namespace acme.net.Controllers
     [HttpPost("{id}")]
     public ActionResult<Authorization> Post(string id, [FromBody] AcmeJWT message)
     {
-      if (message.validate(_context, out Account refAccount))
+      try
       {
-        Authorization retAuth = _context.Authorization.Find(id);
-        Order order = _context.Order.Find(retAuth.orderID);
-        if (order.accountID == refAccount.accountID)
+        if (message.validate(_context, out Account refAccount))
         {
-          List<Challenge> challenges = new List<Challenge>();
-          if (!IISAppSettings.HasKey("Disable-HTTP-Chalenge"))
+          Authorization retAuth = _context.Authorization.Find(id);
+          Order order = _context.Order.Find(retAuth.orderID);
+          if (order.accountID == refAccount.accountID)
           {
-            Challenge httpChalenge = _context.Challenge.Where(q => q.authID == retAuth.authID && q.type == net.Challenge.ChallengeType.http01).FirstOrDefault();
-            if (httpChalenge == null)
+            List<Challenge> challenges = new List<Challenge>();
+            if (!IISAppSettings.HasKey("Disable-HTTP-Challenge"))
             {
-              httpChalenge = new Challenge()
+              Challenge httpChallenge = _context.Challenge.Where(q => q.authID == retAuth.authID && q.type == net.Challenge.ChallengeType.http01).FirstOrDefault();
+              if (httpChallenge == null)
               {
-                authID = retAuth.authID,
-                challengeID = generateID(),
-                type = acme.net.Challenge.ChallengeType.http01,
-                token = generateToken(),
-              };
-              _context.Challenge.Add(httpChalenge);
+                httpChallenge = new Challenge()
+                {
+                  authID = retAuth.authID,
+                  challengeID = generateID(),
+                  type = acme.net.Challenge.ChallengeType.http01,
+                  token = generateToken(),
+                };
+                _context.Challenge.Add(httpChallenge);
+              }
+              httpChallenge.url = baseURL() + "challenge/" + httpChallenge.challengeID;
+              challenges.Add(httpChallenge);
             }
-            httpChalenge.url = baseURL() + "challenge/" + httpChalenge.challengeID;
-            challenges.Add(httpChalenge);
-          }
-          if (!IISAppSettings.HasKey("Disable-DNS-Chalenge"))
-          {
-            Challenge dnsChalenge = _context.Challenge.Where(q => q.authID == retAuth.authID && q.type == net.Challenge.ChallengeType.dns01).FirstOrDefault();
-            if (dnsChalenge == null)
+            if (!IISAppSettings.HasKey("Disable-DNS-Challenge"))
             {
-              dnsChalenge = new Challenge()
+              Challenge dnsChallenge = _context.Challenge.Where(q => q.authID == retAuth.authID && q.type == net.Challenge.ChallengeType.dns01).FirstOrDefault();
+              if (dnsChallenge == null)
               {
-                authID = retAuth.authID,
-                challengeID = generateID(),
-                type = acme.net.Challenge.ChallengeType.dns01,
-                token = generateToken()
-              };
-              _context.Challenge.Add(dnsChalenge);
+                dnsChallenge = new Challenge()
+                {
+                  authID = retAuth.authID,
+                  challengeID = generateID(),
+                  type = acme.net.Challenge.ChallengeType.dns01,
+                  token = generateToken()
+                };
+                _context.Challenge.Add(dnsChallenge);
+              }
+              dnsChallenge.url = baseURL() + "challenge/" + dnsChallenge.challengeID;
+              challenges.Add(dnsChallenge);
             }
-            dnsChalenge.url = baseURL() + "challenge/" + dnsChalenge.challengeID;
-            challenges.Add(dnsChalenge);
-          }
-          if (!IISAppSettings.HasKey("Disable-TLSALPN-Challenge"))
-          {
-            throw new NotImplementedException();
-            Challenge tlsChalenge = _context.Challenge.Where(q => q.authID == retAuth.authID && q.type == net.Challenge.ChallengeType.tlsalpn01).FirstOrDefault();
-            if (tlsChalenge == null)
+            if (!IISAppSettings.HasKey("Disable-TLSALPN-Challenge"))
             {
-              tlsChalenge = new Challenge()
+              throw new NotImplementedException();
+              Challenge tlsChallenge = _context.Challenge.Where(q => q.authID == retAuth.authID && q.type == net.Challenge.ChallengeType.tlsalpn01).FirstOrDefault();
+              if (tlsChallenge == null)
               {
-                authID = retAuth.authID,
-                challengeID = generateID(),
-                type = acme.net.Challenge.ChallengeType.tlsalpn01,
-                token = generateToken()
-              };
-              _context.Challenge.Add(tlsChalenge);
+                tlsChallenge = new Challenge()
+                {
+                  authID = retAuth.authID,
+                  challengeID = generateID(),
+                  type = acme.net.Challenge.ChallengeType.tlsalpn01,
+                  token = generateToken()
+                };
+                _context.Challenge.Add(tlsChallenge);
+              }
+              tlsChallenge.url = baseURL() + "challenge/" + tlsChallenge.challengeID;
+              challenges.Add(tlsChallenge);
             }
-            tlsChalenge.url = baseURL() + "challenge/" + tlsChalenge.challengeID;
-            challenges.Add(tlsChalenge);
-          }
-          if (challenges.Count > 0)
-          {
-            _context.SaveChanges();
-            retAuth.challenges = challenges.ToArray();
-            Response.Headers.Add("Retry-After", "15");
-            Response.Headers.Add("Replay-Nonce", generateNonce());
-            return retAuth;
+            if (challenges.Count > 0)
+            {
+              _context.SaveChanges();
+              retAuth.challenges = challenges.ToArray();
+              Response.Headers.Add("Retry-After", "15");
+              Response.Headers.Add("Replay-Nonce", generateNonce());
+              return retAuth;
+            }
+            else
+            {
+              throw new AcmeException() { type = AcmeError.ErrorType.serverInternal, detail = "All Challenge types disabled" };
+            }
           }
           else
           {
-            throw new AcmeException() { type = AcmeError.ErrorType.serverInternal, detail = "All chalenge types disabled" };
+            return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
           }
         }
         else
@@ -97,9 +104,9 @@ namespace acme.net.Controllers
           return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
         }
       }
-      else
+      catch (AcmeException ex)
       {
-        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
+        return BadRequest(new AcmeError() { type = ex.type, detail = ex.detail, instance = ex.instance, reference = ex.reference, subproblems = ex.subproblems });
       }
     }
   }

@@ -41,8 +41,10 @@ namespace acme.net
       {
         app.UseDeveloperExceptionPage();
       }
-
-      app.UseHttpsRedirection();
+      else
+      {
+        app.UseHttpsRedirection();
+      }
 
       app.UseRouting();
 
@@ -56,7 +58,41 @@ namespace acme.net
       using (var serviceScope = app.ApplicationServices.GetService<IServiceScopeFactory>().CreateScope())
       {
         var context = serviceScope.ServiceProvider.GetRequiredService<AcmeContext>();
-        context.Database.EnsureCreated();
+        if (context.Database.EnsureCreated())
+        {
+          context.Database.ExecuteSqlRaw("EXEC [ACMEv2_2].sys.sp_addextendedproperty @Name=N'SchemaVersion', @Value=N'1.0.1.0'");
+        }
+        else
+        {
+          System.Data.Common.DbCommand dbCommand = context.Database.GetDbConnection().CreateCommand();
+          dbCommand.CommandText = "SELECT value FROM sys.extended_properties WHERE name='SchemaVersion'";
+          dbCommand.Connection.Open();
+          string schemaVersion = (string)dbCommand.ExecuteScalar();
+          dbCommand.Connection.Close();
+          switch (schemaVersion)
+          {
+            case null:
+              //<=1.0.0 schema
+              context.Database.ExecuteSqlRaw("EXEC [ACMEv2_2].sys.sp_addextendedproperty @Name=N'SchemaVersion', @Value=N'1.0.0.0'");
+              goto case "1.0.0.0";
+            case "1.0.0.0":
+              context.Database.ExecuteSqlRaw("BEGIN TRANSACTION;" +
+                                             "ALTER TABLE dbo.AccountKey ADD" +
+                                             "  crv varchar(10) NULL," +
+                                             "  x varchar(2000) COLLATE SQL_Latin1_General_CP1_CS_AS NULL," +
+                                             "  y varchar(2000) COLLATE SQL_Latin1_General_CP1_CS_AS NULL;" +
+                                             "ALTER TABLE dbo.AccountKey SET(LOCK_ESCALATION = TABLE);" +
+                                             "EXEC[ACMEv2_2].sys.sp_updateextendedproperty @Name = N'SchemaVersion', @Value = N'1.0.1.0';" +
+                                             "COMMIT");
+              goto case "1.0.1.0";
+            case "1.0.1.0":
+              //current schema version, continue from here
+              break;
+            default:
+              throw new ArgumentException("Incompatable Database Schema");
+              break;
+          }
+        }
       }
     }
   }

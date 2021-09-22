@@ -19,32 +19,42 @@ namespace acme.net.Controllers
     [HttpPost("{acctID}/{orderID}")]
     public ActionResult<string> Post(string acctID, string orderID, [FromBody] AcmeJWT message)
     {
-      if (message.validate(_context, out Account refAccount) && acctID == refAccount.accountID)
+      try
       {
-        Order order = _context.Order.Find(orderID);
-        Response.Headers.Add("Replay-Nonce", generateNonce());
-
-        if (order.certificate == null)
+        if (message.validate(_context, out Account refAccount) && acctID == refAccount.accountID)
         {
-          Response.Headers.Add("Retry-After", "15");
-          return null;
+          Order order = _context.Order.Find(orderID);
+          Response.Headers.Add("Replay-Nonce", generateNonce());
+
+          if (order.certificate == null)
+          {
+            Response.Headers.Add("Retry-After", "15");
+            return null;
+          }
+          else
+          {
+            //Response.Headers.Add("Content-Type", "application/x-x509-ca-cert");
+            string ret = "";
+            ret += order.certificate;
+            CERTENROLLLib.CX509CertificateRequestPkcs10 certreq = new CERTENROLLLib.CX509CertificateRequestPkcs10();
+            certreq.InitializeDecode(order.csr);
+            string csrAlgo = certreq.PublicKey.Algorithm.FriendlyName;
+            if (IISAppSettings.HasKey(csrAlgo + "-CAChain"))
+            {
+              System.IO.StreamReader reader = new System.IO.StreamReader(IISAppSettings.GetValue(csrAlgo + "-CAChain"));
+              ret += reader.ReadToEnd();
+            }
+            return ret;
+          }
         }
         else
         {
-          //Response.Headers.Add("Content-Type", "application/x-x509-ca-cert");
-          string ret = "";
-          ret += order.certificate;
-          if (IISAppSettings.HasKey("CAChain"))
-          {
-            System.IO.StreamReader reader = new System.IO.StreamReader(IISAppSettings.GetValue("CAChain"));
-            ret += reader.ReadToEnd();
-          }
-          return ret;
+          return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
         }
       }
-      else
+      catch (AcmeException ex)
       {
-        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
+        return BadRequest(new AcmeError() { type = ex.type, detail = ex.detail, instance = ex.instance, reference = ex.reference, subproblems = ex.subproblems });
       }
     }
   }

@@ -20,71 +20,78 @@ namespace acme.net.Controllers
     [HttpPost]
     public ActionResult<Order> Post([FromBody] AcmeJWT message)
     {
-      if (message.validate(_context, out Account refAccount))
+      try
       {
-        string payloadJson = Microsoft.IdentityModel.Tokens.Base64UrlEncoder.Decode(message.encodedPayload);
-        OrderList requests = Newtonsoft.Json.JsonConvert.DeserializeObject<OrderList>(payloadJson);
-
-        DateTimeOffset expireTime = DateTime.UtcNow.AddDays(6);
-
-        Order order = new Order()
+        if (message.validate(_context, out Account refAccount))
         {
-          orderID = generateID(),
-          accountID = refAccount.accountID,
-          status = Order.OrderStatus.pending,
-          expires = expireTime
-        };
+          string payloadJson = Microsoft.IdentityModel.Tokens.Base64UrlEncoder.Decode(message.encodedPayload);
+          OrderList requests = Newtonsoft.Json.JsonConvert.DeserializeObject<OrderList>(payloadJson);
 
-        if (IISAppSettings.HasKey("Require-Identifier-PreAuth"))
-        {
-          foreach (OrderStub i in requests.identifiers)
+          DateTimeOffset expireTime = DateTime.UtcNow.AddDays(6);
+
+          Order order = new Order()
           {
-            IdentifierPreAuth ipa = _context.IdentifierPreAuth.Find(i.value);
-            if (ipa is null)
+            orderID = generateID(),
+            accountID = refAccount.accountID,
+            status = Order.OrderStatus.pending,
+            expires = expireTime
+          };
+
+          if (IISAppSettings.HasKey("Require-Identifier-PreAuth"))
+          {
+            foreach (OrderStub i in requests.identifiers)
             {
-              order.status = Order.OrderStatus.invalid;
-              _context.Order.Add(order);
-              _context.SaveChanges();
-              return Unauthorized(new AcmeError()
+              IdentifierPreAuth ipa = _context.IdentifierPreAuth.Find(i.value);
+              if (ipa is null)
               {
-                type = AcmeError.ErrorType.userActionRequired,
-                detail = "DNS name '" + i.value + "' has not been authorized for this ACME server, please visit " + IISAppSettings.GetValue("Require-Identifier-PreAuth")
-              });
+                order.status = Order.OrderStatus.invalid;
+                _context.Order.Add(order);
+                _context.SaveChanges();
+                return Unauthorized(new AcmeError()
+                {
+                  type = AcmeError.ErrorType.userActionRequired,
+                  detail = "DNS name '" + i.value + "' has not been authorized for this ACME server, please visit " + IISAppSettings.GetValue("Require-Identifier-PreAuth")
+                });
+              }
             }
           }
-        }
 
-        order.finalize = baseURL() + "finalize/" + refAccount.accountID + "/" + order.orderID;
+          order.finalize = baseURL() + "finalize/" + refAccount.accountID + "/" + order.orderID;
 
-        _context.Order.Add(order);
+          _context.Order.Add(order);
 
-        List<string> retAuthz = new List<string>();
-        foreach (OrderStub i in requests.identifiers)
-        {
-          Authorization newAuth = new Authorization()
+          List<string> retAuthz = new List<string>();
+          foreach (OrderStub i in requests.identifiers)
           {
-            authID = generateID(),
-            orderID = order.orderID,
-            status = Authorization.AuthorizationStatus.pending,
-            expires = expireTime,
-            identifier = i
-          };
-          _context.Authorization.Add(newAuth);
-          retAuthz.Add(baseURL() + "authorization/" + newAuth.authID);
+            Authorization newAuth = new Authorization()
+            {
+              authID = generateID(),
+              orderID = order.orderID,
+              status = Authorization.AuthorizationStatus.pending,
+              expires = expireTime,
+              identifier = i
+            };
+            _context.Authorization.Add(newAuth);
+            retAuthz.Add(baseURL() + "authorization/" + newAuth.authID);
+          }
+
+          order.authorizations = retAuthz.ToArray();
+
+          _context.SaveChanges();
+
+          Response.StatusCode = 201;
+          Response.Headers.Add("Location", baseURL() + "order/" + refAccount.accountID + "/" + order.orderID);
+          Response.Headers.Add("Replay-Nonce", generateNonce());
+          return order;
         }
-
-        order.authorizations = retAuthz.ToArray();
-
-        _context.SaveChanges();
-
-        Response.StatusCode = 201;
-        Response.Headers.Add("Location", baseURL() + "order/" + refAccount.accountID + "/" + order.orderID);
-        Response.Headers.Add("Replay-Nonce", generateNonce());
-        return order;
+        else
+        {
+          return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
+        }
       }
-      else
+      catch (AcmeException ex)
       {
-        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
+        return BadRequest(new AcmeError() { type = ex.type, detail = ex.detail, instance = ex.instance, reference = ex.reference, subproblems = ex.subproblems });
       }
     }
   }

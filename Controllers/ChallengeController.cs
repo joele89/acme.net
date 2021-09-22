@@ -21,96 +21,103 @@ namespace acme.net.Controllers
     [HttpPost("{challengeID}")]
     public ActionResult<Challenge> Post(string challengeID, [FromBody] AcmeJWT message)
     {
-      if (message.validate(_context, out Account refAccount))
+      try
       {
-        Challenge reqChallenge = _context.Challenge.Find(challengeID);
-        Authorization reqAuth = _context.Authorization.Find(reqChallenge.authID);
-        Order reqOrder = _context.Order.Find(reqAuth.orderID);
-        if (reqOrder.accountID == refAccount.accountID)
+        if (message.validate(_context, out Account refAccount))
         {
-          reqChallenge.status = net.Challenge.ChallengeStatus.processing;
-          reqChallenge.url = baseURL() + "challenge/" + reqChallenge.challengeID;
-          try
+          Challenge reqChallenge = _context.Challenge.Find(challengeID);
+          Authorization reqAuth = _context.Authorization.Find(reqChallenge.authID);
+          Order reqOrder = _context.Order.Find(reqAuth.orderID);
+          if (reqOrder.accountID == refAccount.accountID)
           {
-            bool challengeResult = false;
-            switch (reqChallenge.type)
+            reqChallenge.status = net.Challenge.ChallengeStatus.processing;
+            reqChallenge.url = baseURL() + "challenge/" + reqChallenge.challengeID;
+            try
             {
-              case net.Challenge.ChallengeType.http01:
+              bool challengeResult = false;
+              switch (reqChallenge.type)
+              {
+                case net.Challenge.ChallengeType.http01:
+                  {
+                    string accountHash = AcmeJWT.calculateAccountHash(refAccount);
+                    challengeResult = getHTTP01(reqAuth.identifier.value, reqChallenge.token, accountHash);
+                    break;
+                  }
+                case net.Challenge.ChallengeType.dns01:
+                  {
+                    string tokenHash = AcmeJWT.calculateTokenHash(reqChallenge.token, refAccount.key.kty);
+                    challengeResult = getDNS01(reqAuth.identifier.value, tokenHash);
+                    break;
+                  }
+                default:
+                  {
+                    throw new NotImplementedException();
+                    break;
+                  }
+              }
+              if (challengeResult)
+              {
+                reqChallenge.validated = DateTime.UtcNow;
+                reqChallenge.status = net.Challenge.ChallengeStatus.valid;
+                reqAuth.status = Authorization.AuthorizationStatus.valid;
+              }
+              else
+              {
+                reqChallenge.status = net.Challenge.ChallengeStatus.invalid;
+                reqAuth.status = Authorization.AuthorizationStatus.invalid;
+                Response.Headers.Add("Retry-After", "15");
+                reqChallenge.error = new AcmeError()
                 {
-                  string accountHash = AcmeJWT.calculateAccountHash(refAccount);
-                  challengeResult = getHTTP01(reqAuth.identifier.value, reqChallenge.token, accountHash);
-                  break;
-                }
-              case net.Challenge.ChallengeType.dns01:
-                {
-                  string tokenHash = AcmeJWT.calculateTokenHash(reqChallenge.token);
-                  challengeResult = getDNS01(reqAuth.identifier.value, tokenHash);
-                  break;
-                }
-              default:
-                {
-                  throw new NotImplementedException();
-                  break;
-                }
+                  type = AcmeError.ErrorType.incorrectResponse,
+                  detail = "Unable to validate token"
+                };
+              }
+
             }
-            if (challengeResult)
+            catch (NotImplementedException ex)
             {
-              reqChallenge.validated = DateTime.UtcNow;
-              reqChallenge.status = net.Challenge.ChallengeStatus.valid;
-              reqAuth.status = Authorization.AuthorizationStatus.valid;
+              throw ex;
             }
-            else
+            catch (Exception ex)
             {
               reqChallenge.status = net.Challenge.ChallengeStatus.invalid;
               reqAuth.status = Authorization.AuthorizationStatus.invalid;
               Response.Headers.Add("Retry-After", "15");
               reqChallenge.error = new AcmeError()
               {
-                type = AcmeError.ErrorType.incorrectResponse,
-                detail = "Unable to validate token"
-              };
-            }
-
-          }
-          catch (NotImplementedException ex)
-          {
-            throw ex;
-          }
-          catch (Exception ex)
-          {
-            reqChallenge.status = net.Challenge.ChallengeStatus.invalid;
-            reqAuth.status = Authorization.AuthorizationStatus.invalid;
-            Response.Headers.Add("Retry-After", "15");
-            reqChallenge.error = new AcmeError()
-            {
-              type = AcmeError.ErrorType.connection,
-              detail = "Error occured retriving token",
-              subproblems = new AcmeError[] {
+                type = AcmeError.ErrorType.connection,
+                detail = "Error occured retriving token",
+                subproblems = new AcmeError[] {
                 new AcmeError()
                 {
                   type = AcmeError.ErrorType.connection,
                   detail = ex.Message
                 }
               }
-            };
+              };
+            }
+
+            _context.Entry(reqChallenge).State = EntityState.Modified;
+            _context.Entry(reqAuth).State = EntityState.Modified;
+            _context.SaveChanges();
+
+            Response.Headers.Add("Link", "<" + baseURL() + "authorization/" + reqAuth.authID + ">;rel=\"up\"");
+            Response.Headers.Add("Replay-Nonce", generateNonce());
+            return reqChallenge;
           }
-
-          _context.Entry(reqChallenge).State = EntityState.Modified;
-          _context.Entry(reqAuth).State = EntityState.Modified;
-          _context.SaveChanges();
-
-          Response.Headers.Add("Link", "<" + baseURL() + "authorization/" + reqAuth.authID + ">;rel=\"up\"");
-          Response.Headers.Add("Replay-Nonce", generateNonce());
-          return reqChallenge;
+          else
+          {
+            return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
+          }
         }
         else
         {
           return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
         }
       }
-      else
+      catch (AcmeException ex)
       {
-        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
+        return BadRequest(new AcmeError() { type = ex.type, detail = ex.detail, instance = ex.instance, reference = ex.reference, subproblems = ex.subproblems });
       }
     }
 
@@ -122,7 +129,7 @@ namespace acme.net.Controllers
         wc.Proxy = new System.Net.WebProxy(IISAppSettings.GetValue("HTTPProxy"));
       }
       string ret = wc.DownloadString("http://" + identifier + "/.well-known/acme-challenge/" + challengeToken);
-      return (ret == challengeToken + "." + accountHash);
+      return (ret.Trim() == challengeToken + "." + accountHash);
     }
 
     bool getDNS01(string identifier, string tokenHash)

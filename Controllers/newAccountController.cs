@@ -32,7 +32,19 @@ namespace acme.net.Controllers
         Account.Key searchKey = null;
         try
         {
-          searchKey = _context.AccountKey.Where(key => key.n == jWTHeader.jwk.n).FirstOrDefault();
+          switch (jWTHeader.alg)
+          {
+            case "RS256":
+              searchKey = _context.AccountKey.Where(key => key.n == jWTHeader.jwk.n).FirstOrDefault();
+              break;
+            case "ES256":
+            case "ES384":
+            case "ES521":
+              searchKey = _context.AccountKey.Where(key => key.x == jWTHeader.jwk.x && key.y == jWTHeader.jwk.y).FirstOrDefault();
+              break;
+            default:
+              return BadRequest(new AcmeError() { type = AcmeError.ErrorType.badPublicKey });
+          }
         }
         catch { }
 

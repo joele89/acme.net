@@ -14,6 +14,7 @@ namespace acme.net
       public const int CR_DISP_ISSUED = 0x3;
       public const int CR_DISP_UNDER_SUBMISSION = 0x5;
     }
+    //TODO: Make this async
     public static AcmeError submitCSR(AcmeContext context, Order order)
     {
 
@@ -21,22 +22,28 @@ namespace acme.net
       context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
       context.SaveChanges();
 
+      CERTENROLLLib.CX509CertificateRequestPkcs10 certreq = new CERTENROLLLib.CX509CertificateRequestPkcs10();
+      certreq.InitializeDecode(order.csr);
+      string csrAlgo = certreq.PublicKey.Algorithm.FriendlyName;
+
+      if (IISAppSettings.HasKey(csrAlgo + "-CAConfig")) return new AcmeError() { type = AcmeError.ErrorType.badCSR, detail = "Certificate Algorithm '" + csrAlgo + "' is not supported by this CA" };
+
       int ret = 0;
       CERTCLILib.CCertRequest client = new CERTCLILib.CCertRequest();
       try
       {
-
-        if (IISAppSettings.HasKey("CAConfig-User") && IISAppSettings.HasKey("CAConfig-Pass"))
+        if (IISAppSettings.HasKey(csrAlgo + "-CAConfig-User") && IISAppSettings.HasKey(csrAlgo + "-CAConfig-Pass"))
         {
-          client.SetCredential(0x0, CERTCLILib.X509EnrollmentAuthFlags.X509AuthUsername, IISAppSettings.GetValue("CAConfig-User"), IISAppSettings.GetValue("CAConfig-Pass"));
+          client.SetCredential(0x0, CERTCLILib.X509EnrollmentAuthFlags.X509AuthUsername, IISAppSettings.GetValue(csrAlgo + "-CAConfig-User"), IISAppSettings.GetValue(csrAlgo + "-CAConfig-Pass"));
         }
-        if (IISAppSettings.HasKey("CACertTemplate"))
+
+        if (IISAppSettings.HasKey(csrAlgo + "-CACertTemplate"))
         {
-          ret = client.Submit(0x0, "-----BEGIN NEW CERTIFICATE REQUEST-----" + order.csr + "-----END NEW CERTIFICATE REQUEST-----", "CertificateTemplate:" + IISAppSettings.GetValue("CACertTemplate"), IISAppSettings.GetValue("CAConfig"));
+          ret = client.Submit(0x0, "-----BEGIN NEW CERTIFICATE REQUEST-----" + order.csr + "-----END NEW CERTIFICATE REQUEST-----", "CertificateTemplate:" + IISAppSettings.GetValue(csrAlgo + "-CACertTemplate"), IISAppSettings.GetValue(csrAlgo + "-CAConfig"));
         }
         else
         {
-          ret = client.Submit(0x0, "-----BEGIN NEW CERTIFICATE REQUEST-----" + order.csr + "-----END NEW CERTIFICATE REQUEST-----", null, IISAppSettings.GetValue("CAConfig"));
+          ret = client.Submit(0x0, "-----BEGIN NEW CERTIFICATE REQUEST-----" + order.csr + "-----END NEW CERTIFICATE REQUEST-----", null, IISAppSettings.GetValue(csrAlgo + "-CAConfig"));
         }
       }
       catch (Exception ex)
@@ -140,7 +147,6 @@ namespace acme.net
         };
       }
       return null;
-#warning TODO: SubmitCSR async
     }
   }
 }

@@ -20,48 +20,66 @@ namespace acme.net.Controllers
     [HttpPost("{acctID}/{orderID}")]
     public ActionResult<Order> Post(string acctID, string orderID, [FromBody] AcmeJWT message)
     {
-      if (message.validate(_context, out Account refAccount) && acctID == refAccount.accountID)
+      try
       {
-        Order order = _context.Order.Find(orderID);
-        Response.Headers.Add("Replay-Nonce", generateNonce());
-        order.finalize = baseURL() + "finalize/" + acctID + "/" + orderID;
-
-        Authorization[] authz = _context.Authorization.Where(q => q.orderID == order.orderID).ToArray();
-
-        List<OrderStub> identities = new List<OrderStub>();
-        List<String> authList = new List<String>();
-
-        foreach (Authorization orderIdentity in authz)
+        if (message.validate(_context, out Account refAccount) && acctID == refAccount.accountID)
         {
-          identities.Add(new OrderStub() { value = orderIdentity.value, type = orderIdentity.type });
-          authList.Add(baseURL() + "authorization/" + orderIdentity.authID);
-        }
-        order.identifiers = identities.ToArray();
-        order.authorizations = authList.ToArray();
+          Order order = _context.Order.Find(orderID);
+          Response.Headers.Add("Replay-Nonce", generateNonce());
+          order.finalize = baseURL() + "finalize/" + acctID + "/" + orderID;
 
-        if (order.status == Order.OrderStatus.processing)
-        {
-          Response.Headers.Add("Retry-After", "15");
-        }
-        if (order.status == Order.OrderStatus.ready)
-        {
-          Response.Headers.Add("Retry-After", "15");
-          AcmeError e = CAInterface.submitCSR(_context, order);
-          if (e != null)
+          Authorization[] authz = _context.Authorization.Where(q => q.orderID == order.orderID).ToArray();
+
+          List<OrderStub> identities = new List<OrderStub>();
+          List<String> authList = new List<String>();
+
+          int pendingCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.pending).Count();
+          int validCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.valid).Count();
+          int invalidCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.invalid).Count();
+          int deactivatedCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.deactivated).Count();
+          int expiredCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.expired).Count();
+          int revokedCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.revoked).Count();
+
+          if (validCount >= authz.Count()) order.status = Order.OrderStatus.ready;
+          if (pendingCount > 0) order.status = Order.OrderStatus.pending;
+          if (invalidCount > 0 || deactivatedCount > 0 || expiredCount > 0 || revokedCount > 0) order.status = Order.OrderStatus.invalid;
+
+          foreach (Authorization orderIdentity in authz)
           {
-            Response.StatusCode = 500;
-            return new ObjectResult(e);
+            identities.Add(new OrderStub() { value = orderIdentity.value, type = orderIdentity.type });
+            authList.Add(baseURL() + "authorization/" + orderIdentity.authID);
           }
+          order.identifiers = identities.ToArray();
+          order.authorizations = authList.ToArray();
+
+          if (order.status == Order.OrderStatus.processing)
+          {
+            Response.Headers.Add("Retry-After", "15");
+          }
+          if (order.status == Order.OrderStatus.ready)
+          {
+            Response.Headers.Add("Retry-After", "15");
+            AcmeError e = CAInterface.submitCSR(_context, order);
+            if (e != null)
+            {
+              Response.StatusCode = 500;
+              return new ObjectResult(e);
+            }
+          }
+          if (order.status == Order.OrderStatus.valid)
+          {
+            order.certificateURL = baseURL() + "cert/" + acctID + "/" + orderID;
+          }
+          return order;
         }
-        if (order.status == Order.OrderStatus.valid)
+        else
         {
-          order.certificateURL = baseURL() + "cert/" + acctID + "/" + orderID;
+          return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
         }
-        return order;
       }
-      else
+      catch (AcmeException ex)
       {
-        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
+        return BadRequest(new AcmeError() { type = ex.type, detail = ex.detail, instance = ex.instance, reference = ex.reference, subproblems = ex.subproblems });
       }
     }
   }

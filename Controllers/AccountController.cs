@@ -40,35 +40,48 @@ namespace acme.net.Controllers
     [HttpPost("{id}")]
     public ActionResult<Account> PostAccount(string id, AcmeJWT message)
     {
-      if (message.validate(_context, out Account refAccount))
+      try
       {
-        AccountStub accountStub = Newtonsoft.Json.JsonConvert.DeserializeObject<AccountStub>(message.encodedPayload);
-
-        if (id != refAccount.accountID)
+        if (message.validate(_context, out Account refAccount))
         {
-         return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
-        }
-        if (accountStub.status != null && accountStub.status != Account.AccountStatus.valid)
-        {
-          refAccount.status = Account.AccountStatus.deactivated;
-          _context.Entry(refAccount).State = EntityState.Modified;
-        }
-        if (accountStub.contact != null)
-        {
-          _context.Contact.RemoveRange(_context.Contact.Where(q => q.accountID == refAccount.accountID));
-          foreach (string c in accountStub.contact)
+          refAccount.baseUrl = baseURL();
+          if (message.encodedPayload != null && message.encodedPayload != "")
           {
-            _context.Contact.Add(new Contact() { accountID = refAccount.accountID, contact = c });
+            AccountStub accountStub = Newtonsoft.Json.JsonConvert.DeserializeObject<AccountStub>(message.encodedPayload);
+
+            if (id != refAccount.accountID)
+            {
+              return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
+            }
+            if (accountStub.status != null && accountStub.status != Account.AccountStatus.valid)
+            {
+              refAccount.status = Account.AccountStatus.deactivated;
+              _context.Entry(refAccount).State = EntityState.Modified;
+            }
+            if (accountStub.contact != null)
+            {
+              _context.Contact.RemoveRange(_context.Contact.Where(q => q.accountID == refAccount.accountID));
+              foreach (string c in accountStub.contact)
+              {
+                _context.Contact.Add(new Contact() { accountID = refAccount.accountID, contact = c });
+              }
+              _context.Entry(refAccount).State = EntityState.Modified;
+            }
+            _context.SaveChanges();
+            return refAccount;
+          } else
+          {
+            return refAccount;
           }
-          _context.Entry(refAccount).State = EntityState.Modified;
         }
-        _context.SaveChanges();
-        refAccount.baseUrl = baseURL();
-        return refAccount;
+        else
+        {
+          return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
+        }
       }
-      else
+      catch (AcmeException ex)
       {
-        return BadRequest(new AcmeError() { type = AcmeError.ErrorType.malformed });
+        return BadRequest(new AcmeError() { type = ex.type, detail = ex.detail, instance = ex.instance, reference = ex.reference, subproblems = ex.subproblems });
       }
     }
   }
