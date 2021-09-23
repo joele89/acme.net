@@ -26,7 +26,7 @@ namespace acme.net
       certreq.InitializeDecode(order.csr);
       string csrAlgo = certreq.PublicKey.Algorithm.FriendlyName;
 
-      if (IISAppSettings.HasKey(csrAlgo + "-CAConfig")) return new AcmeError() { type = AcmeError.ErrorType.badCSR, detail = "Certificate Algorithm '" + csrAlgo + "' is not supported by this CA" };
+      if (!IISAppSettings.HasKey(csrAlgo + "-CAConfig")) return new AcmeError() { type = AcmeError.ErrorType.badCSR, detail = "Certificate Algorithm '" + csrAlgo + "' is not supported by this CA" };
 
       int ret = 0;
       CERTCLILib.CCertRequest client = new CERTCLILib.CCertRequest();
