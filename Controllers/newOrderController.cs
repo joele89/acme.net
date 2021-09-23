@@ -75,6 +75,8 @@ namespace acme.net.Controllers
             retAuthz.Add(baseURL() + "authorization/" + newAuth.authID);
           }
 
+          order.identifiers = requests.identifiers;
+
           order.authorizations = retAuthz.ToArray();
 
           _context.SaveChanges();

@@ -56,7 +56,7 @@ namespace acme.net.Controllers
           {
             Response.Headers.Add("Retry-After", "15");
           }
-          if (order.status == Order.OrderStatus.ready)
+          if (order.status == Order.OrderStatus.ready && order.csr != null && order.certificate == null)
           {
             Response.Headers.Add("Retry-After", "15");
             AcmeError e = CAInterface.submitCSR(_context, order);
