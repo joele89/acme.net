@@ -60,7 +60,7 @@ namespace acme.net
         var context = serviceScope.ServiceProvider.GetRequiredService<AcmeContext>();
         if (context.Database.EnsureCreated())
         {
-          context.Database.ExecuteSqlRaw("EXEC [ACMEv2_2].sys.sp_addextendedproperty @Name=N'SchemaVersion', @Value=N'1.0.1.0'");
+          context.Database.ExecuteSqlRaw("EXEC sys.sp_addextendedproperty @Name=N'SchemaVersion', @Value=N'1.0.1.0'");
         }
         else
         {
@@ -73,7 +73,7 @@ namespace acme.net
           {
             case null:
               //<=1.0.0 schema
-              context.Database.ExecuteSqlRaw("EXEC [ACMEv2_2].sys.sp_addextendedproperty @Name=N'SchemaVersion', @Value=N'1.0.0.0'");
+              context.Database.ExecuteSqlRaw("EXEC sys.sp_addextendedproperty @Name=N'SchemaVersion', @Value=N'1.0.0.0'");
               goto case "1.0.0.0";
             case "1.0.0.0":
               context.Database.ExecuteSqlRaw("BEGIN TRANSACTION;" +
@@ -82,7 +82,7 @@ namespace acme.net
                                              "  x varchar(2000) COLLATE SQL_Latin1_General_CP1_CS_AS NULL," +
                                              "  y varchar(2000) COLLATE SQL_Latin1_General_CP1_CS_AS NULL;" +
                                              "ALTER TABLE dbo.AccountKey SET(LOCK_ESCALATION = TABLE);" +
-                                             "EXEC[ACMEv2_2].sys.sp_updateextendedproperty @Name = N'SchemaVersion', @Value = N'1.0.1.0';" +
+                                             "EXEC sys.sp_updateextendedproperty @Name = N'SchemaVersion', @Value = N'1.0.1.0';" +
                                              "COMMIT");
               goto case "1.0.1.0";
             case "1.0.1.0":
