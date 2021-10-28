@@ -17,7 +17,7 @@ namespace acme.net.Controllers
       _context = context;
     }
     [HttpPost("{acctID}/{orderID}")]
-    public ActionResult<string> Post(string acctID, string orderID, [FromBody] AcmeJWT message)
+    public ActionResult<byte[]> Post(string acctID, string orderID, [FromBody] AcmeJWT message)
     {
       try
       {
@@ -33,7 +33,6 @@ namespace acme.net.Controllers
           }
           else
           {
-            //Response.Headers.Add("Content-Type", "application/x-x509-ca-cert");
             string ret = "";
             ret += order.certificate;
             CERTENROLLLib.CX509CertificateRequestPkcs10 certreq = new CERTENROLLLib.CX509CertificateRequestPkcs10();
@@ -44,7 +43,7 @@ namespace acme.net.Controllers
               System.IO.StreamReader reader = new System.IO.StreamReader(IISAppSettings.GetValue(csrAlgo + "-CAChain"));
               ret += reader.ReadToEnd();
             }
-            return ret;
+            return File(System.Text.Encoding.ASCII.GetBytes(ret), "application/pem-certificate-chain");
           }
         }
         else

@@ -33,16 +33,21 @@ namespace acme.net.Controllers
           List<OrderStub> identities = new List<OrderStub>();
           List<String> authList = new List<String>();
 
-          int pendingCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.pending).Count();
-          int validCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.valid).Count();
-          int invalidCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.invalid).Count();
-          int deactivatedCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.deactivated).Count();
-          int expiredCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.expired).Count();
-          int revokedCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.revoked).Count();
+          if (order.status == Order.OrderStatus.pending) {
 
-          if (validCount >= authz.Count()) order.status = Order.OrderStatus.ready;
-          if (pendingCount > 0) order.status = Order.OrderStatus.pending;
-          if (invalidCount > 0 || deactivatedCount > 0 || expiredCount > 0 || revokedCount > 0) order.status = Order.OrderStatus.invalid;
+            int pendingCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.pending).Count();
+            int validCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.valid).Count();
+            int invalidCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.invalid).Count();
+            int deactivatedCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.deactivated).Count();
+            int expiredCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.expired).Count();
+            int revokedCount = authz.Where(q => q.status == Authorization.AuthorizationStatus.revoked).Count();
+
+            if (validCount >= authz.Count()) order.status = Order.OrderStatus.ready;
+            if (pendingCount > 0) order.status = Order.OrderStatus.pending;
+            if (invalidCount > 0 || deactivatedCount > 0 || expiredCount > 0 || revokedCount > 0) order.status = Order.OrderStatus.invalid;
+
+          }
+
 
           foreach (Authorization orderIdentity in authz)
           {

@@ -45,7 +45,7 @@ namespace acme.net.Controllers
                   }
                 case net.Challenge.ChallengeType.dns01:
                   {
-                    string tokenHash = AcmeJWT.calculateTokenHash(reqChallenge.token, refAccount.key.kty);
+                    string tokenHash = AcmeJWT.calculateTokenHash(reqChallenge.token, refAccount.key.GetHashName());
                     challengeResult = getDNS01(reqAuth.identifier.value, tokenHash);
                     break;
                   }
@@ -69,7 +69,7 @@ namespace acme.net.Controllers
                 reqChallenge.error = new AcmeError()
                 {
                   type = AcmeError.ErrorType.incorrectResponse,
-                  detail = "Unable to validate token"
+                  detail = "Retrieved token doesn't match expected value"
                 };
               }
 
@@ -78,6 +78,17 @@ namespace acme.net.Controllers
             {
               throw ex;
             }
+            catch (AcmeException ex)
+            {
+              reqChallenge.status = net.Challenge.ChallengeStatus.invalid;
+              reqAuth.status = Authorization.AuthorizationStatus.invalid;
+              Response.Headers.Add("Retry-After", "15");
+              reqChallenge.error = new AcmeError()
+              {
+                type = ex.type,
+                detail = ex.detail,
+              };
+            }
             catch (Exception ex)
             {
               reqChallenge.status = net.Challenge.ChallengeStatus.invalid;
@@ -85,15 +96,19 @@ namespace acme.net.Controllers
               Response.Headers.Add("Retry-After", "15");
               reqChallenge.error = new AcmeError()
               {
-                type = AcmeError.ErrorType.connection,
-                detail = "Error occured retriving token",
-                subproblems = new AcmeError[] {
-                new AcmeError()
-                {
-                  type = AcmeError.ErrorType.connection,
-                  detail = ex.Message
+                type = AcmeError.ErrorType.serverInternal,
+                detail = "Internal server error occured while retriving token",
+                subproblems = new AcmeError[] { new AcmeError()
+                  {
+                    type = AcmeError.ErrorType.serverInternal,
+                    detail = ex.Message
+                  },
+                  new AcmeError()
+                  {
+                    type = AcmeError.ErrorType.serverInternal,
+                    detail = ex.StackTrace
+                  }
                 }
-              }
               };
             }
 
@@ -128,18 +143,40 @@ namespace acme.net.Controllers
       {
         wc.Proxy = new System.Net.WebProxy(IISAppSettings.GetValue("HTTPProxy"));
       }
-      string ret = wc.DownloadString("http://" + identifier + "/.well-known/acme-challenge/" + challengeToken);
-      return (ret.Trim() == challengeToken + "." + accountHash);
+      try
+      {
+        string ret = wc.DownloadString("http://" + identifier + "/.well-known/acme-challenge/" + challengeToken);
+        return (ret.Trim() == challengeToken + "." + accountHash);
+      } catch (System.Net.WebException ex)
+      {
+        throw new AcmeException()
+        {
+          type = AcmeError.ErrorType.connection,
+          detail = ex.Message
+        };
+      }
     }
 
     bool getDNS01(string identifier, string tokenHash)
     {
       DnsClient.LookupClient lc = new DnsClient.LookupClient();
 #warning TODO: identify/connect to authoritave name server
+#warning TODO: Wildcard Support
       DnsClient.IDnsQueryResponse qr = lc.Query("_acme-challenge." + identifier, DnsClient.QueryType.TXT);
-      foreach (DnsClient.Protocol.TxtRecord record in qr.Answers)
+      if (qr.Answers.Count > 0)
       {
-        if (record.Text.First() == tokenHash) { return true; }
+        foreach (DnsClient.Protocol.TxtRecord record in qr.Answers)
+        {
+          if (record.Text.First() == tokenHash) { return true; }
+        }
+      }
+      else
+      {
+        throw new AcmeException()
+        {
+          type = AcmeError.ErrorType.connection,
+          detail = "Couldn't retrieve DNS record"
+        };
       }
       return false;
     }

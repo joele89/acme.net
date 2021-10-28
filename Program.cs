@@ -46,6 +46,7 @@ namespace acme.net
             break;
         }
       }
+      xml.Close();
       throw new KeyNotFoundException();
     }
     static public bool HasKey(string key)
@@ -67,6 +68,7 @@ namespace acme.net
             break;
         }
       }
+      xml.Close();
       return false;
     }
   }
