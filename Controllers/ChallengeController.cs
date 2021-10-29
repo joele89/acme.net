@@ -35,17 +35,17 @@ namespace acme.net.Controllers
             try
             {
               bool challengeResult = false;
+              string accountHash = AcmeJWT.calculateAccountHash(refAccount);
               switch (reqChallenge.type)
               {
                 case net.Challenge.ChallengeType.http01:
                   {
-                    string accountHash = AcmeJWT.calculateAccountHash(refAccount);
                     challengeResult = getHTTP01(reqAuth.identifier.value, reqChallenge.token, accountHash);
                     break;
                   }
                 case net.Challenge.ChallengeType.dns01:
                   {
-                    string tokenHash = AcmeJWT.calculateTokenHash(reqChallenge.token, refAccount.key.GetHashName());
+                    string tokenHash = AcmeJWT.calculateTokenHash(reqChallenge.token + "." + accountHash, refAccount.key.GetHashName());
                     challengeResult = getDNS01(reqAuth.identifier.value, tokenHash);
                     break;
                   }
@@ -157,7 +157,7 @@ namespace acme.net.Controllers
       }
     }
 
-    bool getDNS01(string identifier, string tokenHash)
+    bool getDNS01(string identifier, string dnsToken)
     {
       DnsClient.LookupClient lc = new DnsClient.LookupClient();
 #warning TODO: identify/connect to authoritave name server
@@ -167,7 +167,7 @@ namespace acme.net.Controllers
       {
         foreach (DnsClient.Protocol.TxtRecord record in qr.Answers)
         {
-          if (record.Text.First() == tokenHash) { return true; }
+          if (record.Text.First() == dnsToken) { return true; }
         }
       }
       else
