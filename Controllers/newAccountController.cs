@@ -64,16 +64,18 @@ namespace acme.net.Controllers
             Account.Key newKey = Account.Key.FromJWK(jWTHeader.jwk);
             newKey.accountID = account.accountID;
             _context.AccountKey.Add(newKey);
-
-            foreach (String contactString in stub.contact)
-            {
-              Contact newContact = new Contact()
+            if (stub.contact != null) {
+#warning TODO: decide if we should reject register if no contact is provided... time to double check rfc...
+              foreach (String contactString in stub.contact)
               {
-                accountID = account.accountID,
+                Contact newContact = new Contact()
+                {
+                  accountID = account.accountID,
 #warning TODO: validate contact URL format. (ensure '^mailto:')
-                contact = contactString
-              };
-              _context.Contact.Add(newContact);
+                  contact = contactString
+                };
+                _context.Contact.Add(newContact);
+              }
             }
             _context.SaveChanges();
 

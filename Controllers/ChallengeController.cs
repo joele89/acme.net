@@ -160,23 +160,65 @@ namespace acme.net.Controllers
     bool getDNS01(string identifier, string dnsToken)
     {
       DnsClient.LookupClient lc = new DnsClient.LookupClient();
-#warning TODO: identify/connect to authoritave name server
 #warning TODO: Wildcard Support
-      DnsClient.IDnsQueryResponse qr = lc.Query("_acme-challenge." + identifier, DnsClient.QueryType.TXT);
-      if (qr.Answers.Count > 0)
+      DnsClient.IDnsQueryResponse soaqr = lc.Query("_acme-challenge." + identifier, DnsClient.QueryType.SOA);
+      DnsClient.Protocol.SoaRecord soa;
+      if (soaqr.Answers.Count > 0)
       {
-        foreach (DnsClient.Protocol.TxtRecord record in qr.Answers)
+        soa = (DnsClient.Protocol.SoaRecord)soaqr.Answers.FirstOrDefault(n => n.RecordType == DnsClient.Protocol.ResourceRecordType.SOA);
+        DnsClient.IDnsQueryResponse nsqr = lc.Query(soa.DomainName.Value, DnsClient.QueryType.NS);
+        if (nsqr.Answers.Count > 0)
         {
-          if (record.Text.First() == dnsToken) { return true; }
+          DnsClient.Protocol.ARecord nsARecord = (DnsClient.Protocol.ARecord)nsqr.AllRecords.FirstOrDefault(n => n.RecordType == DnsClient.Protocol.ResourceRecordType.A);
+          if (nsARecord == null)
+          {
+            DnsClient.Protocol.NsRecord nsRecord = (DnsClient.Protocol.NsRecord)nsqr.Answers.FirstOrDefault(n => n.RecordType == DnsClient.Protocol.ResourceRecordType.NS);
+            DnsClient.IDnsQueryResponse aqr = lc.Query(nsRecord.NSDName.Value, DnsClient.QueryType.A);
+            nsARecord = (DnsClient.Protocol.ARecord)aqr.Answers.FirstOrDefault(n => n.RecordType == DnsClient.Protocol.ResourceRecordType.A);
+          }
+          if (nsARecord != null)
+          {
+            lc = new DnsClient.LookupClient(nsARecord.Address);
+          }
         }
       }
-      else
+      try
       {
-        throw new AcmeException()
+        DnsClient.IDnsQueryResponse qr = lc.Query("_acme-challenge." + identifier, DnsClient.QueryType.TXT);
+        if (qr.Answers.Count > 0)
         {
-          type = AcmeError.ErrorType.connection,
-          detail = "Couldn't retrieve DNS record"
-        };
+          foreach (DnsClient.Protocol.TxtRecord record in qr.Answers.Where(n => n.RecordType == DnsClient.Protocol.ResourceRecordType.TXT))
+          {
+            if (record.Text.First() == dnsToken) { return true; }
+          }
+        }
+        else
+        {
+          throw new AcmeException()
+          {
+            type = AcmeError.ErrorType.connection,
+            detail = "Couldn't retrieve DNS record"
+          };
+        }
+      } catch (DnsClient.DnsResponseException)
+      {
+        lc = new DnsClient.LookupClient();
+        DnsClient.IDnsQueryResponse qr = lc.Query("_acme-challenge." + identifier, DnsClient.QueryType.TXT);
+        if (qr.Answers.Count > 0)
+        {
+          foreach (DnsClient.Protocol.TxtRecord record in qr.Answers.Where(n => n.RecordType == DnsClient.Protocol.ResourceRecordType.TXT))
+          {
+            if (record.Text.First() == dnsToken) { return true; }
+          }
+        }
+        else
+        {
+          throw new AcmeException()
+          {
+            type = AcmeError.ErrorType.connection,
+            detail = "Couldn't retrieve DNS record"
+          };
+        }
       }
       return false;
     }
