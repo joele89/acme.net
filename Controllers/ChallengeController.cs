@@ -161,11 +161,10 @@ namespace acme.net.Controllers
     {
       DnsClient.LookupClient lc = new DnsClient.LookupClient();
 #warning TODO: Wildcard Support
-      DnsClient.IDnsQueryResponse soaqr = lc.Query("_acme-challenge." + identifier, DnsClient.QueryType.SOA);
-      DnsClient.Protocol.SoaRecord soa;
-      if (soaqr.Answers.Count > 0)
+      DnsClient.IDnsQueryResponse soaqr = lc.Query(identifier, DnsClient.QueryType.SOA);
+      if (soaqr.AllRecords.Count() > 0)
       {
-        soa = (DnsClient.Protocol.SoaRecord)soaqr.Answers.FirstOrDefault(n => n.RecordType == DnsClient.Protocol.ResourceRecordType.SOA);
+        DnsClient.Protocol.SoaRecord soa = (DnsClient.Protocol.SoaRecord)soaqr.AllRecords.FirstOrDefault(n => n.RecordType == DnsClient.Protocol.ResourceRecordType.SOA);
         DnsClient.IDnsQueryResponse nsqr = lc.Query(soa.DomainName.Value, DnsClient.QueryType.NS);
         if (nsqr.Answers.Count > 0)
         {
