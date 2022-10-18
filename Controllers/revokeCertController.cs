@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Formats.Asn1;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Policy;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.IdentityModel.Tokens;
 
@@ -28,9 +30,14 @@ namespace acme.net.Controllers
       {
         if (message.validate(_context, out Account refAccount))
         {
-          string payloadJson = Microsoft.IdentityModel.Tokens.Base64UrlEncoder.Decode(message.encodedPayload);
+          string payloadJson = Base64UrlEncoder.Decode(message.encodedPayload);
           Revocation reqRevocation = Newtonsoft.Json.JsonConvert.DeserializeObject<Revocation>(payloadJson);
-          Order order = _context.Order.Where(q => q.certificate == reqRevocation.certificate).FirstOrDefault();
+          string b64Cert = Convert.ToBase64String(Base64UrlEncoder.DecodeBytes(reqRevocation.certificate));
+          Order order = _context.Order.Where(q => Convert.ToString(q.certificate).Replace("\n", "").Replace("\r", "").Contains(b64Cert)).FirstOrDefault();
+          if (order == null)
+            return NotFound(new AcmeError() { type = AcmeError.ErrorType.incorrectResponse, detail = "Provided certificate not found" });
+          if (order.revocationReason != null)
+            return BadRequest(new AcmeError() { type = AcmeError.ErrorType.alreadyRevoked, detail = "Provided certificate has already been revoked" });
           reqRevocation.reason ??= Revocation.Reason.unspecified;
           if (refAccount != null)
           {
@@ -39,6 +46,7 @@ namespace acme.net.Controllers
               order.revocationReason = reqRevocation.reason;
               _context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
               _context.SaveChanges();
+              Response.Headers.Add("Replay-Nonce", generateNonce());
               return Ok();
             }
             else
@@ -53,11 +61,12 @@ namespace acme.net.Controllers
                 order.revocationReason = reqRevocation.reason;
                 _context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
                 _context.SaveChanges();
+                Response.Headers.Add("Replay-Nonce", generateNonce());
                 return Ok();
               }
               else
               {
-                return Forbidden(new AcmeError() { type = AcmeError.ErrorType.unauthorized, detail = "No authorization provided" });
+                return Forbidden(new AcmeError() { type = AcmeError.ErrorType.unauthorized, detail = "Account hasn't demonstrated appropriate control" });
               }
             }
           }
@@ -66,23 +75,31 @@ namespace acme.net.Controllers
             //Requester controls private key (message validated, but has no account reference)
             string decodedHeader = Base64UrlEncoder.Decode(message.encodedJWTHeader);
             JWTHeader header = Newtonsoft.Json.JsonConvert.DeserializeObject<JWTHeader>(decodedHeader);
-            X509Certificate certificate = new X509Certificate(System.Text.Encoding.ASCII.GetBytes(reqRevocation.certificate));
-            bool keyMatch = header.jwk.kty switch
+            X509Certificate certificate = new X509Certificate(Base64UrlEncoder.DecodeBytes(reqRevocation.certificate));
+            bool keyMatch = false;
+            switch (header.jwk.kty)
             {
-              "RSA" => Microsoft.IdentityModel.Tokens.Base64UrlEncoder.DecodeBytes(header.jwk.n).SequenceEqual(certificate.GetPublicKey()),
-              "EC" => throw new NotImplementedException(),
-              _ => false,
-            };
+              case "RSA":
+                AsnReader asn = new AsnReader(certificate.GetPublicKey(), AsnEncodingRules.DER);
+                System.Numerics.BigInteger keyInt = asn.ReadSequence().ReadInteger();
+                byte[] keyBytes = keyInt.ToByteArray();
+                Array.Reverse(keyBytes);
+                keyBytes = keyBytes[1..];
+                keyMatch = Base64UrlEncoder.DecodeBytes(header.jwk.n).SequenceEqual(keyBytes);
+                break;
+              case "EC": throw new NotImplementedException(); break;
+            }
             if (keyMatch)
             {
               order.revocationReason = reqRevocation.reason;
               _context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
               _context.SaveChanges();
+              Response.Headers.Add("Replay-Nonce", generateNonce());
               return Ok();
             }
             else
             {
-              return Forbidden(new AcmeError() { type = AcmeError.ErrorType.unauthorized, detail = "No authorization provided" });
+              return Forbidden(new AcmeError() { type = AcmeError.ErrorType.unauthorized, detail = "Provided certificate does not demonstrate appropriate control" });
             }
           }
         }
