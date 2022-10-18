@@ -89,7 +89,7 @@ namespace acme.net
             case "1.0.1.0":
               context.Database.ExecuteSqlRaw("BEGIN TRANSACTION;" +
                                              "ALTER TABLE dbo.[Order] ADD" +
-                                             "  revocationReason int() NULL;" +
+                                             "  revocationReason int NULL;" +
                                              "EXEC sys.sp_updateextendedproperty @Name = N'SchemaVersion', @Value = N'1.0.4.0';" +
                                              "COMMIT");
               goto case "1.0.4.0";
