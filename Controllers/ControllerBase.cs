@@ -4,11 +4,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.EntityFrameworkCore.Query.Internal;
 
 namespace acme.net.Controllers
 {
   public class ControllerBase : Microsoft.AspNetCore.Mvc.ControllerBase
-  { 
+  {
     public string baseURL()
     {
       return baseURL(Request);
@@ -61,6 +63,29 @@ namespace acme.net.Controllers
         if (36 <= rn) ret += (char)(rn - 36 + 0x61); //Lowercase
       }
       return ret;
+    }
+
+    public ForbiddenResult Forbidden()
+    {
+      return new ForbiddenResult(403);
+    }
+    public ForbiddenObjectResult Forbidden(object value)
+    {
+      return new ForbiddenObjectResult(value);
+    }
+  }
+
+  public class ForbiddenObjectResult : Microsoft.AspNetCore.Mvc.ObjectResult
+  {
+    public ForbiddenObjectResult(object value) : base(value)
+    {
+      StatusCode = 403;
+    }
+  }
+  public class ForbiddenResult : Microsoft.AspNetCore.Mvc.StatusCodeResult
+  {
+    public ForbiddenResult([ActionResultStatusCode] int statusCode) : base(statusCode)
+    {
     }
   }
 }

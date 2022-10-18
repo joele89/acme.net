@@ -44,6 +44,8 @@ namespace acme.net
     public string certificateURL;
     [Newtonsoft.Json.JsonIgnore]
     public int? caReqID { get; set; }
+    [Newtonsoft.Json.JsonIgnore]
+    public Revocation.Reason? revocationReason { get; set; }
 
     public enum OrderStatus : int
     {
@@ -56,6 +58,25 @@ namespace acme.net
     public enum OrderType : int
     {
       dns,
+    }
+
+  }
+  public class Revocation
+  {
+    public string certificate { get; set; }
+    [Newtonsoft.Json.JsonProperty(PropertyName = "certificate")]
+    public Reason? reason { get; set; }
+    public enum Reason : int
+    {
+      unspecified = 0,
+      keyCompromise = 1,
+      caCompromise = 2,
+      affiliationChanged = 3,
+      superseded = 4,
+      cessationOfOperation = 5,
+      hold = 6,
+      releaseFromCRL = 8,
+      unrevoke = -1,
     }
   }
   public class OrderStub
