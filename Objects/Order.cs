@@ -64,7 +64,6 @@ namespace acme.net
   public class Revocation
   {
     public string certificate { get; set; }
-    [Newtonsoft.Json.JsonProperty(PropertyName = "certificate")]
     public Reason? reason { get; set; }
     public enum Reason : int
     {
