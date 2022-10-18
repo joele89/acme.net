@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -63,7 +64,8 @@ namespace acme.net.Controllers
               _context.Contact.RemoveRange(_context.Contact.Where(q => q.accountID == refAccount.accountID));
               foreach (string c in accountStub.contact)
               {
-                _context.Contact.Add(new Contact() { accountID = refAccount.accountID, contact = c });
+                if (Regex.Match(c, "/mailto:\\s*.*/i").Success)
+                  _context.Contact.Add(new Contact() { accountID = refAccount.accountID, contact = c });
               }
               _context.Entry(refAccount).State = EntityState.Modified;
             }

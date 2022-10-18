@@ -147,7 +147,8 @@ namespace acme.net.Controllers
       {
         string ret = wc.DownloadString("http://" + identifier + "/.well-known/acme-challenge/" + challengeToken);
         return (ret.Trim() == challengeToken + "." + accountHash);
-      } catch (System.Net.WebException ex)
+      }
+      catch (System.Net.WebException ex)
       {
         throw new AcmeException()
         {
@@ -160,8 +161,16 @@ namespace acme.net.Controllers
     bool getDNS01(string identifier, string dnsToken)
     {
       DnsClient.LookupClient lc = new DnsClient.LookupClient();
-#warning TODO: Wildcard Support
-      DnsClient.IDnsQueryResponse soaqr = lc.Query(identifier, DnsClient.QueryType.SOA);
+      string dnsCheck = identifier;
+      if (identifier.StartsWith("*."))
+      {
+        dnsCheck = identifier.Substring(2);
+      }
+      else if (identifier.Contains("*"))
+      {
+        throw new AcmeException() { type = AcmeError.ErrorType.rejectedIdentifier, detail = "Wildcard must be the host level only, wildcards can't include partial hostnames" };
+      }
+      DnsClient.IDnsQueryResponse soaqr = lc.Query(dnsCheck, DnsClient.QueryType.SOA);
       if (soaqr.AllRecords.Count() > 0)
       {
         DnsClient.Protocol.SoaRecord soa = (DnsClient.Protocol.SoaRecord)soaqr.AllRecords.FirstOrDefault(n => n.RecordType == DnsClient.Protocol.ResourceRecordType.SOA);
@@ -183,7 +192,7 @@ namespace acme.net.Controllers
       }
       try
       {
-        DnsClient.IDnsQueryResponse qr = lc.Query("_acme-challenge." + identifier, DnsClient.QueryType.TXT);
+        DnsClient.IDnsQueryResponse qr = lc.Query("_acme-challenge." + dnsCheck, DnsClient.QueryType.TXT);
         if (qr.Answers.Count > 0)
         {
           foreach (DnsClient.Protocol.TxtRecord record in qr.Answers.Where(n => n.RecordType == DnsClient.Protocol.ResourceRecordType.TXT))
@@ -199,10 +208,11 @@ namespace acme.net.Controllers
             detail = "Couldn't retrieve DNS record"
           };
         }
-      } catch (DnsClient.DnsResponseException)
+      }
+      catch (DnsClient.DnsResponseException)
       {
         lc = new DnsClient.LookupClient();
-        DnsClient.IDnsQueryResponse qr = lc.Query("_acme-challenge." + identifier, DnsClient.QueryType.TXT);
+        DnsClient.IDnsQueryResponse qr = lc.Query("_acme-challenge." + dnsCheck, DnsClient.QueryType.TXT);
         if (qr.Answers.Count > 0)
         {
           foreach (DnsClient.Protocol.TxtRecord record in qr.Answers.Where(n => n.RecordType == DnsClient.Protocol.ResourceRecordType.TXT))

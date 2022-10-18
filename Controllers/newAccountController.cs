@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -64,18 +65,27 @@ namespace acme.net.Controllers
             Account.Key newKey = Account.Key.FromJWK(jWTHeader.jwk);
             newKey.accountID = account.accountID;
             _context.AccountKey.Add(newKey);
-            if (stub.contact != null) {
-#warning TODO: decide if we should reject register if no contact is provided... time to double check rfc...
+            if (stub.contact != null)
+            {
               foreach (String contactString in stub.contact)
               {
-                Contact newContact = new Contact()
+                if (Regex.Match(contactString, "/mailto:\\s*.*/i").Success)
                 {
-                  accountID = account.accountID,
-#warning TODO: validate contact URL format. (ensure '^mailto:')
-                  contact = contactString
-                };
-                _context.Contact.Add(newContact);
+                  Contact newContact = new Contact()
+                  {
+                    accountID = account.accountID,
+                    contact = contactString
+                  };
+                  _context.Contact.Add(newContact);
+                } else
+                {
+                  return BadRequest(new AcmeError() { type = AcmeError.ErrorType.invalidContact, detail = "Bad contact address format" });
+                }
               }
+            }
+            else if (IISAppSettings.HasKey("Contact-Required") && IISAppSettings.GetValue("Contact-Required") == "True")
+            {
+              return BadRequest(new AcmeError() { type = AcmeError.ErrorType.invalidContact, detail = "A contact email address is required by this CA" });
             }
             _context.SaveChanges();
 
