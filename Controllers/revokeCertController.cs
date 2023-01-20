@@ -43,6 +43,7 @@ namespace acme.net.Controllers
           {
             if (order.accountID == refAccount.accountID)
             { //Account requested certificate
+              CAInterface.revokeCertificate(order, (int)reqRevocation.reason.Value);
               order.revocationReason = reqRevocation.reason;
               _context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
               _context.SaveChanges();
@@ -58,6 +59,7 @@ namespace acme.net.Controllers
 
               if (unauthorisedIdentifiers.Count == 0)
               {
+                CAInterface.revokeCertificate(order, (int)reqRevocation.reason.Value);
                 order.revocationReason = reqRevocation.reason;
                 _context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
                 _context.SaveChanges();
@@ -91,6 +93,7 @@ namespace acme.net.Controllers
             }
             if (keyMatch)
             {
+              CAInterface.revokeCertificate(order, (int)reqRevocation.reason.Value);
               order.revocationReason = reqRevocation.reason;
               _context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
               _context.SaveChanges();

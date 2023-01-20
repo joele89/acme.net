@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 
 namespace acme.net
@@ -36,7 +37,6 @@ namespace acme.net
         {
           client.SetCredential(0x0, CERTCLILib.X509EnrollmentAuthFlags.X509AuthUsername, IISAppSettings.GetValue(csrAlgo + "-CAConfig-User"), IISAppSettings.GetValue(csrAlgo + "-CAConfig-Pass"));
         }
-
         if (IISAppSettings.HasKey(csrAlgo + "-CACertTemplate"))
         {
           ret = client.Submit(0x0, "-----BEGIN NEW CERTIFICATE REQUEST-----" + order.csr + "-----END NEW CERTIFICATE REQUEST-----", "CertificateTemplate:" + IISAppSettings.GetValue(csrAlgo + "-CACertTemplate"), IISAppSettings.GetValue(csrAlgo + "-CAConfig"));
@@ -123,7 +123,6 @@ namespace acme.net
       try
       {
         order.certificate = client.GetCertificate(0x0);
-
         order.status = Order.OrderStatus.valid;
         context.Entry(order).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
         context.SaveChanges();
@@ -145,6 +144,44 @@ namespace acme.net
             }
           }
         };
+      }
+      return null;
+    }
+
+    public static AcmeError revokeCertificate(Order order, int Reason)
+    {
+      CERTENROLLLib.CX509CertificateRequestPkcs10 certreq = new CERTENROLLLib.CX509CertificateRequestPkcs10();
+      certreq.InitializeDecode(order.csr);
+      string csrAlgo = certreq.PublicKey.Algorithm.FriendlyName;
+
+      if (IISAppSettings.HasKey(csrAlgo + "-RevokeURL"))
+      {
+        string FullURL = IISAppSettings.GetValue(csrAlgo + "-RevokeURL").Replace("{CARequestID}", order.caReqID.ToString()).Replace("{Reason}", Reason.ToString());
+        System.Net.HttpWebRequest Client = (HttpWebRequest)System.Net.HttpWebRequest.Create(FullURL);
+        Client.PreAuthenticate = true;
+        System.Net.CredentialCache credCache = new System.Net.CredentialCache();
+        credCache.Add(new System.Uri(FullURL), "Basic", new System.Net.NetworkCredential(IISAppSettings.GetValue(csrAlgo + "-CAConfig-User"), IISAppSettings.GetValue(csrAlgo + "-CAConfig-Pass")));
+        Client.Credentials = credCache;
+        Client.Method = "GET";
+        try
+        {
+          System.Net.HttpWebResponse Resp = (System.Net.HttpWebResponse)Client.GetResponse();
+        }
+        catch (Exception ex) {
+          return new AcmeError()
+          {
+            detail = "Error revoking certificate",
+            type = AcmeError.ErrorType.serverInternal,
+            subproblems = new AcmeError[]
+            {
+              new AcmeError()
+              {
+                type = AcmeError.ErrorType.serverInternal,
+                detail = ex.Message
+              }
+            }
+          };
+        }
       }
       return null;
     }

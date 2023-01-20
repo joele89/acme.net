@@ -69,7 +69,7 @@ namespace acme.net.Controllers
             {
               foreach (String contactString in stub.contact)
               {
-                if (Regex.Match(contactString, "/mailto:\\s*.*/i").Success)
+                if (Regex.Match(contactString, "mailto:\\s*.*", RegexOptions.IgnoreCase).Success)
                 {
                   Contact newContact = new Contact()
                   {
